@@ -1,0 +1,19 @@
+{
+  "eng_load": "ENGINE_LOAD",
+  "coolant_temp": "COOLANT_TEMP",
+  "oil_temp": "OIL_TEMP",
+  "rpm": "RPM",
+  "speed": "SPEED",
+  "timing_advance": "TIMING_ADVANCE",
+  "throttle_pos": "THROTTLE_POS",
+  "intake_temp": "INTAKE_TEMP",
+  "maf": "MAF",
+  "max_maf": "MAX_MAF",
+  "fuel_pressure": "FUEL_PRESSURE",
+  "fuel_rate": "FUEL_RATE",
+  "dist_since_dtc_cleared": "DISTANCE_SINCE_DTC_CLEARED",
+  "time_since_dtc_cleared": "TIME_SINCE_DTC_CLEARED",
+  "run_time": "RUN_TIME",
+  "get_dtc": "GET_DTC",
+  "clear_dtc": "CLEAR_DTC"
+}

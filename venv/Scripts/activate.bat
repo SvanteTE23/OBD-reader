@@ -8,7 +8,7 @@ if defined _OLD_CODEPAGE (
     "%SystemRoot%\System32\chcp.com" 65001 > nul
 )
 
-set VIRTUAL_ENV=C:\Users\svant\OneDrive\Skrivbord\OBD-reader\venv
+set VIRTUAL_ENV=C:\Users\SvaLinT23\Desktop\Webbsidan\OBD-reader\venv
 
 if not defined PROMPT set PROMPT=$P$G
 

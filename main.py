@@ -1,10 +1,5 @@
-import obd
+import get_data
+import read_json
 
-# Skapa anslutning till din OBD-II WiFi-adapter (ersätt med din IP och port)
-connection = obd.OBD("192.168.0.10", 35000)
-
-# Välj en sensor, t.ex. hastighet
-cmd = obd.commands.SPEED
-response = connection.query(cmd)
-
-print(response.value)
+def main():
+    get_data.read_obd_data(read_json.get_command('rpm'))

@@ -37,7 +37,7 @@ deactivate () {
 # unset irrelevant variables
 deactivate nondestructive
 
-VIRTUAL_ENV="C:\Users\svant\OneDrive\Skrivbord\OBD-reader\venv"
+VIRTUAL_ENV="C:\Users\SvaLinT23\Desktop\Webbsidan\OBD-reader\venv"
 export VIRTUAL_ENV
 
 _OLD_VIRTUAL_PATH="$PATH"
