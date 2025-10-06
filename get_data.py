@@ -1,5 +1,7 @@
 import obd
 
+print("Connecting to OBD-II adapter...")
+
 # Skapa anslutning till din OBD-II WiFi-adapter (ersätt med din IP och port)
 connection = obd.OBD("192.168.0.10", 35000)
 
