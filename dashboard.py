@@ -1,0 +1,495 @@
+"""
+OBD Dashboard - Modernt GUI för fordonsdiagnostik
+Stöd för både simulerad och riktig OBD-II data
+"""
+
+import sys
+import random
+import math
+import threading
+import time
+from tkinter import messagebox
+import customtkinter as ctk
+
+obd_connection = None
+read_json = None
+
+
+def initialize_obd_connection():
+    """Initialisera OBD-anslutning."""
+    global obd_connection, read_json
+    
+    try:
+        import obd
+        import read_json as rj
+        read_json = rj
+        
+        print("Ansluter till OBD-II adapter...")
+        obd_connection = obd.OBD("192.168.0.10", 35000)
+        
+        if obd_connection.is_connected():
+            print("✓ OBD-II adapter ansluten!")
+            return True
+        print("✗ Anslutning misslyckades")
+        return False
+    except Exception as e:
+        print(f"✗ Fel: {e}")
+        return False
+
+
+def read_obd_data(command):
+    """Läs data från OBD."""
+    if not obd_connection:
+        return None
+    
+    try:
+        response = obd_connection.query(command)
+        return response.value if not response.is_null() else None
+    except:
+        return None
+
+
+class GaugeWidget(ctk.CTkCanvas):
+    """Mätare med båge och visare."""
+    
+    def __init__(self, master, title="", min_val=0, max_val=100, unit="", **kwargs):
+        super().__init__(master, width=220, height=220, bg="#1a1a1e", highlightthickness=0, **kwargs)
+        
+        self.title = title
+        self.min_val = min_val
+        self.max_val = max_val
+        self.unit = unit
+        self.value = 0
+        
+        self.cx, self.cy = 110, 110
+        self.radius = 80
+        
+        self.draw()
+        
+    def set_value(self, val):
+        """Uppdatera värde."""
+        self.value = max(self.min_val, min(self.max_val, val))
+        self.draw()
+    
+    def draw(self):
+        """Rita mätaren."""
+        self.delete("all")
+        
+        self.create_oval(10, 10, 210, 210, fill="#2a2a2e", outline="#3a3a3e", width=2)
+        self.create_oval(5, 5, 215, 215, outline="#4a4a4e", width=3)
+        
+        self.create_arc(30, 30, 190, 190, start=45, extent=270, 
+                       outline="#3a3a3e", width=12, style="arc")
+        
+        ratio = (self.value - self.min_val) / (self.max_val - self.min_val)
+        extent = 270 * ratio
+        
+        self.create_arc(30, 30, 190, 190, start=45, extent=extent,
+                       outline="#00c896", width=12, style="arc")
+        
+        self._draw_marks()
+        self._draw_needle(ratio)
+        
+        self.create_oval(105, 105, 115, 115, fill="#4a4a4e", outline="#5a5a5e")
+        
+        self.create_text(self.cx, self.cy + 25, text=f"{int(self.value)}", 
+                        fill="#dcdcdc", font=("Arial", 18, "bold"))
+        self.create_text(self.cx, self.cy + 45, text=self.unit, 
+                        fill="#dcdcdc", font=("Arial", 10))
+        self.create_text(self.cx, 25, text=self.title, 
+                        fill="#dcdcdc", font=("Arial", 11, "bold"))
+    
+    def _draw_marks(self):
+        """Rita skalstreck."""
+        for i in range(9):
+            angle = math.radians(225 - (270 * i / 8))
+            x1, y1 = self.cx + 70 * math.cos(angle), self.cy - 70 * math.sin(angle)
+            x2, y2 = self.cx + 60 * math.cos(angle), self.cy - 60 * math.sin(angle)
+            
+            self.create_line(x1, y1, x2, y2, fill="#6a6a6e", width=2)
+            
+            val = self.min_val + (self.max_val - self.min_val) * i / 8
+            x_text = self.cx + 50 * math.cos(angle)
+            y_text = self.cy - 50 * math.sin(angle)
+            
+            self.create_text(x_text, y_text, text=str(int(val)), 
+                           fill="#8a8a8e", font=("Arial", 8))
+    
+    def _draw_needle(self, ratio):
+        """Rita visare."""
+        angle = math.radians(225 - (270 * ratio))
+        x_end = self.cx + 65 * math.cos(angle)
+        y_end = self.cy - 65 * math.sin(angle)
+        
+        self.create_line(self.cx, self.cy, x_end, y_end, fill="#ff5050", width=3)
+
+
+class OBDDashboard(ctk.CTk):
+    """Huvuddashboard med 4 sidor."""
+    
+    def __init__(self, use_sim=True):
+        super().__init__()
+        
+        self.use_sim = use_sim
+        self.commands = {}
+        
+        if not use_sim:
+            if initialize_obd_connection():
+                try:
+                    self.commands = read_json.load_commands()
+                    print(f"✓ Laddade {len(self.commands)} kommandon")
+                except Exception as e:
+                    print(f"✗ Fel: {e}")
+                    self.use_sim = True
+            else:
+                print("⚠ Använder simulering")
+                self.use_sim = True
+        
+        self.runtime = 0
+        self.dist_dtc = 0
+        self.time_dtc = 0
+        
+        self._setup_ui()
+        self._start_updates()
+        
+    def _setup_ui(self):
+        """Skapa gränssnitt."""
+        mode = "Simulering" if self.use_sim else "Live OBD"
+        self.title(f"OBD Dashboard - {mode}")
+        self.geometry("1024x600")
+        
+        ctk.set_appearance_mode("dark")
+        ctk.set_default_color_theme("green")
+        
+        main = ctk.CTkFrame(self, fg_color="#1a1a1e")
+        main.pack(fill="both", expand=True, padx=10, pady=10)
+        
+        ctk.CTkLabel(main, text="Fordon OBD Dashboard", 
+                    font=("Arial", 28, "bold"), text_color="#00c896").pack(pady=(10, 5))
+        
+        nav = ctk.CTkFrame(main, fg_color="transparent")
+        nav.pack(pady=10)
+        
+        self.nav_btns = []
+        for i, name in enumerate(["Huvud", "Temperatur", "Bränsle & Luft", "Diagnostik"]):
+            btn = ctk.CTkButton(nav, text=name, width=200, height=40,
+                              command=lambda idx=i: self._switch(idx),
+                              font=("Arial", 14, "bold"))
+            btn.pack(side="left", padx=5)
+            self.nav_btns.append(btn)
+        
+        self.pages_frame = ctk.CTkFrame(main, fg_color="transparent")
+        self.pages_frame.pack(fill="both", expand=True, pady=10)
+        
+        self.pages = []
+        self._page_main()
+        self._page_temp()
+        self._page_fuel()
+        self._page_diag()
+        
+        self._switch(0)
+        
+    def _page_main(self):
+        """Huvudsida."""
+        page = ctk.CTkFrame(self.pages_frame, fg_color="#1a1a1e")
+        
+        ctk.CTkLabel(page, text="Huvuddashboard", 
+                    font=("Arial", 20, "bold"), text_color="#00c896").pack(pady=10)
+        
+        gauges = ctk.CTkFrame(page, fg_color="transparent")
+        gauges.pack(pady=10)
+        
+        self.speed = GaugeWidget(gauges, "HASTIGHET", 0, 200, "km/h")
+        self.speed.pack(side="left", padx=10)
+        
+        self.rpm = GaugeWidget(gauges, "VARVTAL", 0, 8000, "rpm")
+        self.rpm.pack(side="left", padx=10)
+        
+        self.throttle = GaugeWidget(gauges, "GAS", 0, 100, "%")
+        self.throttle.pack(side="left", padx=10)
+        
+        load_frame = ctk.CTkFrame(page, fg_color="transparent")
+        load_frame.pack(pady=20, padx=40, fill="x")
+        
+        self.load_lbl = ctk.CTkLabel(load_frame, text="MOTORBELASTNING: 0%",
+                                     font=("Arial", 16, "bold"))
+        self.load_lbl.pack()
+        
+        self.load_bar = ctk.CTkProgressBar(load_frame, width=600, height=30)
+        self.load_bar.set(0)
+        self.load_bar.pack(pady=10)
+        
+        data = ctk.CTkFrame(page, fg_color="transparent")
+        data.pack(pady=10)
+        
+        timing = ctk.CTkFrame(data, fg_color="transparent")
+        timing.pack(side="left", padx=40)
+        
+        ctk.CTkLabel(timing, text="TÄNDNING", font=("Arial", 12), 
+                    text_color="#aaa").pack()
+        self.timing = ctk.CTkLabel(timing, text="0.0°",
+                                   font=("Arial", 24, "bold"), text_color="#00c896")
+        self.timing.pack()
+        
+        rt = ctk.CTkFrame(data, fg_color="transparent")
+        rt.pack(side="left", padx=40)
+        
+        ctk.CTkLabel(rt, text="KÖRTID", font=("Arial", 12), 
+                    text_color="#aaa").pack()
+        self.runtime_lbl = ctk.CTkLabel(rt, text="00:00:00",
+                                        font=("Arial", 24, "bold"), text_color="#00c896")
+        self.runtime_lbl.pack()
+        
+        self.pages.append(page)
+    
+    def _page_temp(self):
+        """Temperatursida."""
+        page = ctk.CTkFrame(self.pages_frame, fg_color="#1a1a1e")
+        
+        ctk.CTkLabel(page, text="Temperaturövervakning",
+                    font=("Arial", 20, "bold"), text_color="#00c896").pack(pady=10)
+        
+        gauges = ctk.CTkFrame(page, fg_color="transparent")
+        gauges.pack(pady=40)
+        
+        self.coolant = GaugeWidget(gauges, "KYLVÄTSKA", -40, 120, "°C")
+        self.coolant.pack(side="left", padx=20)
+        
+        self.intake_t = GaugeWidget(gauges, "INSUG", -40, 80, "°C")
+        self.intake_t.pack(side="left", padx=20)
+        
+        self.oil = GaugeWidget(gauges, "OLJA", 0, 150, "°C")
+        self.oil.pack(side="left", padx=20)
+        
+        self.pages.append(page)
+    
+    def _page_fuel(self):
+        """Bränsle & luftsida."""
+        page = ctk.CTkFrame(self.pages_frame, fg_color="#1a1a1e")
+        
+        ctk.CTkLabel(page, text="Bränsle & Luft",
+                    font=("Arial", 20, "bold"), text_color="#00c896").pack(pady=10)
+        
+        gauges = ctk.CTkFrame(page, fg_color="transparent")
+        gauges.pack(pady=20)
+        
+        self.fuel_p = GaugeWidget(gauges, "TRYCK", 0, 600, "kPa")
+        self.fuel_p.pack(side="left", padx=15)
+        
+        self.fuel_r = GaugeWidget(gauges, "FLÖDE", 0, 50, "L/h")
+        self.fuel_r.pack(side="left", padx=15)
+        
+        self.intake_p = GaugeWidget(gauges, "INSUG", 0, 300, "kPa")
+        self.intake_p.pack(side="left", padx=15)
+        
+        maf = ctk.CTkFrame(page, fg_color="transparent")
+        maf.pack(pady=20, padx=40, fill="x")
+        
+        self.maf_lbl = ctk.CTkLabel(maf, text="MAF (Luftflöde): 0.0 g/s",
+                                    font=("Arial", 16, "bold"))
+        self.maf_lbl.pack()
+        
+        self.maf_bar = ctk.CTkProgressBar(maf, width=600, height=30)
+        self.maf_bar.set(0)
+        self.maf_bar.pack(pady=10)
+        
+        ctk.CTkLabel(maf, text="MAX MAF", font=("Arial", 12), 
+                    text_color="#aaa").pack(pady=(10, 0))
+        self.max_maf = ctk.CTkLabel(maf, text="255.0 g/s",
+                                    font=("Arial", 20, "bold"), text_color="#00c896")
+        self.max_maf.pack()
+        
+        self.pages.append(page)
+    
+    def _page_diag(self):
+        """Diagnostiksida."""
+        page = ctk.CTkFrame(self.pages_frame, fg_color="#1a1a1e")
+        
+        ctk.CTkLabel(page, text="Diagnostik & Felkoder",
+                    font=("Arial", 20, "bold"), text_color="#00c896").pack(pady=10)
+        
+        data = ctk.CTkFrame(page, fg_color="transparent")
+        data.pack(pady=30)
+        
+        dist = ctk.CTkFrame(data, fg_color="transparent")
+        dist.pack(pady=20)
+        
+        ctk.CTkLabel(dist, text="AVSTÅND SEDAN FELKODER RENSADES",
+                    font=("Arial", 12), text_color="#aaa").pack()
+        self.dist_lbl = ctk.CTkLabel(dist, text="0 km",
+                                     font=("Arial", 28, "bold"), text_color="#00c896")
+        self.dist_lbl.pack()
+        
+        tm = ctk.CTkFrame(data, fg_color="transparent")
+        tm.pack(pady=20)
+        
+        ctk.CTkLabel(tm, text="TID SEDAN FELKODER RENSADES",
+                    font=("Arial", 12), text_color="#aaa").pack()
+        self.time_lbl = ctk.CTkLabel(tm, text="00:00:00",
+                                     font=("Arial", 28, "bold"), text_color="#00c896")
+        self.time_lbl.pack()
+        
+        btns = ctk.CTkFrame(page, fg_color="transparent")
+        btns.pack(pady=30)
+        
+        ctk.CTkButton(btns, text="LÄS FELKODER", width=300, height=50,
+                     font=("Arial", 16, "bold"), command=self._get_dtc).pack(side="left", padx=10)
+        
+        ctk.CTkButton(btns, text="RENSA FELKODER", width=300, height=50,
+                     font=("Arial", 16, "bold"), fg_color="#8a3a3e", hover_color="#aa5055",
+                     command=self._clear_dtc).pack(side="left", padx=10)
+        
+        self.pages.append(page)
+    
+    def _switch(self, idx):
+        """Byt sida."""
+        for i, page in enumerate(self.pages):
+            page.pack(fill="both", expand=True) if i == idx else page.pack_forget()
+        
+        for i, btn in enumerate(self.nav_btns):
+            if i == idx:
+                btn.configure(fg_color="#00c896", text_color="#1a1a1e")
+            else:
+                btn.configure(fg_color=("#3B8ED0", "#1F6AA5"), text_color="white")
+    
+    def _get_dtc(self):
+        """Läs felkoder."""
+        if not self.use_sim:
+            try:
+                result = read_obd_data(self.commands.get('get_dtc'))
+                if not result:
+                    messagebox.showinfo("Felkoder", "Inga felkoder.\n\nStatus: OK")
+                else:
+                    codes = [f"{c[0]} - {c[1]}" if hasattr(c, '__iter__') and len(c) >= 2 
+                            else str(c) for c in result]
+                    msg = f"Hittade {len(codes)} felkod(er):\n\n" + "\n".join(codes)
+                    messagebox.showwarning("Felkoder", msg + "\n\nKonsultera manual.")
+            except Exception as e:
+                messagebox.showerror("Fel", f"Kunde inte läsa felkoder: {e}")
+        else:
+            codes = random.sample(["P0420", "P0171", "P0101", "P0300", "C0035"], 
+                                random.randint(0, 3))
+            if not codes:
+                messagebox.showinfo("Felkoder", "Inga felkoder.\n\nStatus: OK")
+            else:
+                msg = f"Hittade {len(codes)} felkod(er):\n\n" + "\n".join(codes)
+                messagebox.showwarning("Felkoder", msg + "\n\nKonsultera manual.")
+    
+    def _clear_dtc(self):
+        """Rensa felkoder."""
+        if messagebox.askyesno("Rensa",
+            "Rensa alla felkoder?\n\nDetta återställer:\n"
+            "- Alla felkoder\n- Avstånd\n- Tid"):
+            
+            if not self.use_sim:
+                try:
+                    read_obd_data(self.commands.get('clear_dtc'))
+                    self.dist_dtc = 0
+                    self.time_dtc = 0
+                    messagebox.showinfo("Klart", "Felkoder rensade.")
+                except Exception as e:
+                    messagebox.showerror("Fel", f"Kunde inte rensa: {e}")
+            else:
+                self.dist_dtc = 0
+                self.time_dtc = 0
+                messagebox.showinfo("Klart", "Felkoder rensade.")
+    
+    def _read(self, cmd, default=0):
+        """Läs OBD-värde."""
+        if self.use_sim or cmd not in self.commands:
+            return None
+        
+        try:
+            result = read_obd_data(self.commands[cmd])
+            if result is not None:
+                return result.magnitude if hasattr(result, 'magnitude') else result
+        except:
+            pass
+        
+        return default
+    
+    def _start_updates(self):
+        """Starta uppdateringar."""
+        def update():
+            while True:
+                self.after(0, self._update)
+                time.sleep(0.1)
+        
+        threading.Thread(target=update, daemon=True).start()
+    
+    def _update(self):
+        """Uppdatera data."""
+        if self.use_sim:
+            spd, r, thr = random.randint(0, 180), random.randint(800, 7000), random.randint(0, 100)
+            ld, tim = random.randint(10, 95), random.uniform(-10, 45)
+            cool, int_t, oil = random.randint(70, 105), random.randint(15, 45), random.randint(80, 120)
+            fp, fr = random.randint(250, 550), random.uniform(0.5, 25)
+            ip, maf, mmaf = random.randint(30, 120), random.uniform(2, 95), 255.0
+        else:
+            spd = self._read('speed', 0)
+            r = self._read('rpm', 0)
+            thr = self._read('throttle_pos', 0)
+            ld = self._read('eng_load', 0)
+            tim = self._read('timing_advance', 0)
+            cool = self._read('coolant_temp', 80)
+            int_t = self._read('intake_temp', 25)
+            oil = self._read('oil_temp', 90)
+            fp = self._read('fuel_pressure', 300)
+            fr = self._read('fuel_rate', 5)
+            ip = random.randint(30, 120)
+            maf = self._read('maf', 10)
+            mmaf = self._read('max_maf', 255)
+        
+        self.speed.set_value(spd)
+        self.rpm.set_value(r)
+        self.throttle.set_value(thr)
+        self.load_lbl.configure(text=f"MOTORBELASTNING: {int(ld)}%")
+        self.load_bar.set(ld / 100)
+        self.timing.configure(text=f"{tim:.1f}°")
+        
+        if self.use_sim:
+            self.runtime += 0.1
+        else:
+            rt = self._read('run_time', 0)
+            if rt > 0:
+                self.runtime = rt
+        
+        h, m, s = int(self.runtime // 3600), int((self.runtime % 3600) // 60), int(self.runtime % 60)
+        self.runtime_lbl.configure(text=f"{h:02d}:{m:02d}:{s:02d}")
+        
+        self.coolant.set_value(cool)
+        self.intake_t.set_value(int_t)
+        self.oil.set_value(oil)
+        
+        self.fuel_p.set_value(fp)
+        self.fuel_r.set_value(fr)
+        self.intake_p.set_value(ip)
+        self.maf_lbl.configure(text=f"MAF (Luftflöde): {maf:.1f} g/s")
+        self.maf_bar.set((maf / mmaf) if mmaf > 0 else 0)
+        self.max_maf.configure(text=f"{mmaf:.1f} g/s")
+        
+        if self.use_sim:
+            self.dist_dtc += random.uniform(0.01, 0.05)
+            self.time_dtc += 0.1
+        else:
+            d = self._read('dist_since_dtc_cleared', 0)
+            t = self._read('time_since_dtc_cleared', 0)
+            if d and d > 0:
+                self.dist_dtc = d
+            if t and t > 0:
+                self.time_dtc = t
+        
+        self.dist_lbl.configure(text=f"{self.dist_dtc:.1f} km")
+        dh, dm, ds = int(self.time_dtc // 3600), int((self.time_dtc % 3600) // 60), int(self.time_dtc % 60)
+        self.time_lbl.configure(text=f"{dh:02d}:{dm:02d}:{ds:02d}")
+
+
+if __name__ == "__main__":
+    use_sim = "--real" not in sys.argv
+    
+    print("Startar i", "SIMULERING" if use_sim else "LIVE OBD", "läge...")
+    if use_sim:
+        print("För riktig data: python dashboard.py --real")
+    
+    app = OBDDashboard(use_sim=use_sim)
+    app.mainloop()
