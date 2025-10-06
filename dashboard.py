@@ -52,74 +52,103 @@ def read_obd_data(command):
 class GaugeWidget(ctk.CTkCanvas):
     """Mätare med båge och visare."""
     
-    def __init__(self, master, title="", min_val=0, max_val=100, unit="", **kwargs):
-        super().__init__(master, width=220, height=220, bg="#1a1a1e", highlightthickness=0, **kwargs)
+    def __init__(self, master, title="", min_val=0, max_val=100, unit="", size=180, **kwargs):
+        super().__init__(master, width=size, height=size, bg="#1a1a1e", highlightthickness=0, **kwargs)
         
         self.title = title
         self.min_val = min_val
         self.max_val = max_val
         self.unit = unit
         self.value = 0
+        self._last_drawn_value = None
         
-        self.cx, self.cy = 110, 110
-        self.radius = 80
+        self.size = size
+        self.cx, self.cy = size // 2, size // 2
+        self.radius = int(size * 0.36)
         
         self.draw()
         
     def set_value(self, val):
         """Uppdatera värde."""
-        self.value = max(self.min_val, min(self.max_val, val))
-        self.draw()
+        new_val = max(self.min_val, min(self.max_val, val))
+        if self._last_drawn_value is None or abs(new_val - self._last_drawn_value) > 0.5:
+            self.value = new_val
+            self._last_drawn_value = new_val
+            self.draw()
     
     def draw(self):
         """Rita mätaren."""
         self.delete("all")
         
-        self.create_oval(10, 10, 210, 210, fill="#2a2a2e", outline="#3a3a3e", width=2)
-        self.create_oval(5, 5, 215, 215, outline="#4a4a4e", width=3)
+        margin = int(self.size * 0.05)
+        outer = self.size - margin
+        inner_margin = int(self.size * 0.14)
+        inner = self.size - inner_margin
         
-        self.create_arc(30, 30, 190, 190, start=45, extent=270, 
-                       outline="#3a3a3e", width=12, style="arc")
+        self.create_oval(margin, margin, outer, outer, fill="#2a2a2e", outline="#3a3a3e", width=2)
+        self.create_oval(margin-5, margin-5, outer+5, outer+5, outline="#4a4a4e", width=2)
+        
+        # Båge från höger botten (-45°) till vänster botten (135°) = 180° svep moturs
+        arc_margin = int(self.size * 0.14)
+        self.create_arc(arc_margin, arc_margin, self.size-arc_margin, self.size-arc_margin, 
+                       start=135, extent=-180, outline="#3a3a3e", width=10, style="arc")
         
         ratio = (self.value - self.min_val) / (self.max_val - self.min_val)
-        extent = 270 * ratio
+        extent = -180 * ratio
         
-        self.create_arc(30, 30, 190, 190, start=45, extent=extent,
-                       outline="#00c896", width=12, style="arc")
+        self.create_arc(arc_margin, arc_margin, self.size-arc_margin, self.size-arc_margin, 
+                       start=135, extent=extent, outline="#00c896", width=10, style="arc")
         
         self._draw_marks()
         self._draw_needle(ratio)
         
-        self.create_oval(105, 105, 115, 115, fill="#4a4a4e", outline="#5a5a5e")
+        dot_size = int(self.size * 0.05)
+        self.create_oval(self.cx-dot_size, self.cy-dot_size, self.cx+dot_size, self.cy+dot_size, 
+                        fill="#4a4a4e", outline="#5a5a5e")
         
-        self.create_text(self.cx, self.cy + 25, text=f"{int(self.value)}", 
-                        fill="#dcdcdc", font=("Arial", 18, "bold"))
-        self.create_text(self.cx, self.cy + 45, text=self.unit, 
-                        fill="#dcdcdc", font=("Arial", 10))
-        self.create_text(self.cx, 25, text=self.title, 
-                        fill="#dcdcdc", font=("Arial", 11, "bold"))
+        font_val = int(self.size * 0.10)
+        font_unit = int(self.size * 0.045)
+        font_title = int(self.size * 0.055)
+        
+        # Värde och enhet i mitten
+        self.create_text(self.cx, self.cy + int(self.size*0.01), text=f"{int(self.value)}", 
+                        fill="#dcdcdc", font=("Arial", font_val, "bold"))
+        self.create_text(self.cx, self.cy + int(self.size*0.12), text=self.unit, 
+                        fill="#dcdcdc", font=("Arial", font_unit))
+        
+        # Titel under mätaren
+        self.create_text(self.cx, int(self.size*0.92), text=self.title, 
+                        fill="#dcdcdc", font=("Arial", font_title, "bold"))
     
     def _draw_marks(self):
         """Rita skalstreck."""
+        mark_outer = int(self.size * 0.32)
+        mark_inner = int(self.size * 0.27)
+        text_radius = int(self.size * 0.23)
+        
+        # 9 markeringar från 135° (vänster botten) till -45° (höger botten) moturs
         for i in range(9):
-            angle = math.radians(225 - (270 * i / 8))
-            x1, y1 = self.cx + 70 * math.cos(angle), self.cy - 70 * math.sin(angle)
-            x2, y2 = self.cx + 60 * math.cos(angle), self.cy - 60 * math.sin(angle)
+            angle = math.radians(135 - (180 * i / 8))
+            x1, y1 = self.cx + mark_outer * math.cos(angle), self.cy - mark_outer * math.sin(angle)
+            x2, y2 = self.cx + mark_inner * math.cos(angle), self.cy - mark_inner * math.sin(angle)
             
             self.create_line(x1, y1, x2, y2, fill="#6a6a6e", width=2)
             
             val = self.min_val + (self.max_val - self.min_val) * i / 8
-            x_text = self.cx + 50 * math.cos(angle)
-            y_text = self.cy - 50 * math.sin(angle)
+            x_text = self.cx + text_radius * math.cos(angle)
+            y_text = self.cy - text_radius * math.sin(angle)
             
+            font_size = int(self.size * 0.04)
             self.create_text(x_text, y_text, text=str(int(val)), 
-                           fill="#8a8a8e", font=("Arial", 8))
+                           fill="#8a8a8e", font=("Arial", font_size))
     
     def _draw_needle(self, ratio):
         """Rita visare."""
-        angle = math.radians(225 - (270 * ratio))
-        x_end = self.cx + 65 * math.cos(angle)
-        y_end = self.cy - 65 * math.sin(angle)
+        needle_len = int(self.size * 0.30)
+        # Visare går från 135° till -45° (180° svep moturs)
+        angle = math.radians(135 - (180 * ratio))
+        x_end = self.cx + needle_len * math.cos(angle)
+        y_end = self.cy - needle_len * math.sin(angle)
         
         self.create_line(self.cx, self.cy, x_end, y_end, fill="#ff5050", width=3)
 
@@ -157,27 +186,30 @@ class OBDDashboard(ctk.CTk):
         mode = "Simulering" if self.use_sim else "Live OBD"
         self.title(f"OBD Dashboard - {mode}")
         self.geometry("1024x600")
+        self.resizable(False, False)
         
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("green")
         
         main = ctk.CTkFrame(self, fg_color="#1a1a1e")
-        main.pack(fill="both", expand=True, padx=10, pady=10)
+        main.pack(fill="both", expand=True, padx=5, pady=5)
         
-        ctk.CTkLabel(main, text="Fordon OBD Dashboard", 
-                    font=("Arial", 28, "bold"), text_color="#00c896").pack(pady=(10, 5))
+        ctk.CTkLabel(main, text="OBD Dashboard", 
+                    font=("Arial", 20, "bold"), text_color="#00c896").pack(pady=(5, 2))
         
         nav = ctk.CTkFrame(main, fg_color="transparent")
-        nav.pack(pady=10)
+        nav.pack(pady=5)
         
         self.nav_btns = []
+        self.current_page = 0
+        
         for i, name in enumerate(["Huvud", "Temperatur", "Bränsle & Luft", "Diagnostik"]):
-            btn = ctk.CTkButton(nav, text=name, width=200, height=40,
-                              command=lambda idx=i: self._switch(idx),
-                              font=("Arial", 14, "bold"),
+            btn = ctk.CTkButton(nav, text=name, width=180, height=35,
+                              command=self._make_switch_command(i),
+                              font=("Arial", 12, "bold"),
                               corner_radius=8,
                               border_width=0)
-            btn.pack(side="left", padx=5)
+            btn.pack(side="left", padx=3)
             self.nav_btns.append(btn)
         
         self.pages_frame = ctk.CTkFrame(main, fg_color="transparent")
@@ -195,52 +227,52 @@ class OBDDashboard(ctk.CTk):
         """Huvudsida."""
         page = ctk.CTkFrame(self.pages_frame, fg_color="#1a1a1e")
         
-        ctk.CTkLabel(page, text="Huvuddashboard", 
-                    font=("Arial", 20, "bold"), text_color="#00c896").pack(pady=10)
-        
         gauges = ctk.CTkFrame(page, fg_color="transparent")
-        gauges.pack(pady=10)
+        gauges.pack(pady=5)
         
-        self.speed = GaugeWidget(gauges, "HASTIGHET", 0, 200, "km/h")
-        self.speed.pack(side="left", padx=10)
+        self.speed = GaugeWidget(gauges, "HASTIGHET", 0, 200, "km/h", size=160)
+        self.speed.pack(side="left", padx=5)
         
-        self.rpm = GaugeWidget(gauges, "VARVTAL", 0, 8000, "rpm")
-        self.rpm.pack(side="left", padx=10)
+        self.rpm = GaugeWidget(gauges, "VARVTAL", 0, 8000, "rpm", size=160)
+        self.rpm.pack(side="left", padx=5)
         
-        self.throttle = GaugeWidget(gauges, "GAS", 0, 100, "%")
-        self.throttle.pack(side="left", padx=10)
+        self.throttle = GaugeWidget(gauges, "GAS", 0, 100, "%", size=160)
+        self.throttle.pack(side="left", padx=5)
         
         load_frame = ctk.CTkFrame(page, fg_color="transparent")
-        load_frame.pack(pady=20, padx=40, fill="x")
+        load_frame.pack(pady=8, padx=20, fill="x")
         
         self.load_lbl = ctk.CTkLabel(load_frame, text="MOTORBELASTNING: 0%",
-                                     font=("Arial", 16, "bold"))
+                                     font=("Arial", 13, "bold"))
         self.load_lbl.pack()
         
-        self.load_bar = ctk.CTkProgressBar(load_frame, width=600, height=30)
+        self.load_bar = ctk.CTkProgressBar(load_frame, width=500, height=20)
         self.load_bar.set(0)
-        self.load_bar.pack(pady=10)
+        self.load_bar.pack(pady=5)
         
-        data = ctk.CTkFrame(page, fg_color="transparent")
-        data.pack(pady=10)
+        info_panel = ctk.CTkFrame(page, fg_color="#2a2a2e", corner_radius=8)
+        info_panel.pack(pady=8, padx=20, fill="x")
+        
+        data = ctk.CTkFrame(info_panel, fg_color="transparent")
+        data.pack(pady=8, padx=20)
         
         timing = ctk.CTkFrame(data, fg_color="transparent")
-        timing.pack(side="left", padx=40)
+        timing.pack(side="left", padx=30)
         
-        ctk.CTkLabel(timing, text="TÄNDNING", font=("Arial", 12), 
-                    text_color="#aaa").pack()
+        ctk.CTkLabel(timing, text="TÄNDNING", font=("Arial", 11, "bold"), 
+                    text_color="#888").pack()
         self.timing = ctk.CTkLabel(timing, text="0.0°",
                                    font=("Arial", 24, "bold"), text_color="#00c896")
-        self.timing.pack()
+        self.timing.pack(pady=2)
         
         rt = ctk.CTkFrame(data, fg_color="transparent")
-        rt.pack(side="left", padx=40)
+        rt.pack(side="left", padx=30)
         
-        ctk.CTkLabel(rt, text="KÖRTID", font=("Arial", 12), 
-                    text_color="#aaa").pack()
+        ctk.CTkLabel(rt, text="KÖRTID", font=("Arial", 11, "bold"), 
+                    text_color="#888").pack()
         self.runtime_lbl = ctk.CTkLabel(rt, text="00:00:00",
                                         font=("Arial", 24, "bold"), text_color="#00c896")
-        self.runtime_lbl.pack()
+        self.runtime_lbl.pack(pady=2)
         
         self.pages.append(page)
     
@@ -249,19 +281,19 @@ class OBDDashboard(ctk.CTk):
         page = ctk.CTkFrame(self.pages_frame, fg_color="#1a1a1e")
         
         ctk.CTkLabel(page, text="Temperaturövervakning",
-                    font=("Arial", 20, "bold"), text_color="#00c896").pack(pady=10)
+                    font=("Arial", 16, "bold"), text_color="#00c896").pack(pady=8)
         
         gauges = ctk.CTkFrame(page, fg_color="transparent")
-        gauges.pack(pady=40)
+        gauges.pack(pady=15)
         
-        self.coolant = GaugeWidget(gauges, "KYLVÄTSKA", -40, 120, "°C")
-        self.coolant.pack(side="left", padx=20)
+        self.coolant = GaugeWidget(gauges, "KYLVÄTSKA", -40, 120, "°C", size=180)
+        self.coolant.pack(side="left", padx=15)
         
-        self.intake_t = GaugeWidget(gauges, "INSUG", -40, 80, "°C")
-        self.intake_t.pack(side="left", padx=20)
+        self.intake_t = GaugeWidget(gauges, "INSUG", -40, 80, "°C", size=180)
+        self.intake_t.pack(side="left", padx=15)
         
-        self.oil = GaugeWidget(gauges, "OLJA", 0, 150, "°C")
-        self.oil.pack(side="left", padx=20)
+        self.oil = GaugeWidget(gauges, "OLJA", 0, 150, "°C", size=180)
+        self.oil.pack(side="left", padx=15)
         
         self.pages.append(page)
     
@@ -270,35 +302,35 @@ class OBDDashboard(ctk.CTk):
         page = ctk.CTkFrame(self.pages_frame, fg_color="#1a1a1e")
         
         ctk.CTkLabel(page, text="Bränsle & Luft",
-                    font=("Arial", 20, "bold"), text_color="#00c896").pack(pady=10)
+                    font=("Arial", 16, "bold"), text_color="#00c896").pack(pady=5)
         
         gauges = ctk.CTkFrame(page, fg_color="transparent")
-        gauges.pack(pady=20)
+        gauges.pack(pady=8)
         
-        self.fuel_p = GaugeWidget(gauges, "TRYCK", 0, 600, "kPa")
-        self.fuel_p.pack(side="left", padx=15)
+        self.fuel_p = GaugeWidget(gauges, "TRYCK", 0, 600, "kPa", size=160)
+        self.fuel_p.pack(side="left", padx=8)
         
-        self.fuel_r = GaugeWidget(gauges, "FLÖDE", 0, 50, "L/h")
-        self.fuel_r.pack(side="left", padx=15)
+        self.fuel_r = GaugeWidget(gauges, "FLÖDE", 0, 50, "L/h", size=160)
+        self.fuel_r.pack(side="left", padx=8)
         
-        self.intake_p = GaugeWidget(gauges, "INSUG", 0, 300, "kPa")
-        self.intake_p.pack(side="left", padx=15)
+        self.intake_p = GaugeWidget(gauges, "INSUG", 0, 300, "kPa", size=160)
+        self.intake_p.pack(side="left", padx=8)
         
         maf = ctk.CTkFrame(page, fg_color="transparent")
-        maf.pack(pady=20, padx=40, fill="x")
+        maf.pack(pady=10, padx=30, fill="x")
         
         self.maf_lbl = ctk.CTkLabel(maf, text="MAF (Luftflöde): 0.0 g/s",
-                                    font=("Arial", 16, "bold"))
+                                    font=("Arial", 13, "bold"))
         self.maf_lbl.pack()
         
-        self.maf_bar = ctk.CTkProgressBar(maf, width=600, height=30)
+        self.maf_bar = ctk.CTkProgressBar(maf, width=500, height=20)
         self.maf_bar.set(0)
-        self.maf_bar.pack(pady=10)
+        self.maf_bar.pack(pady=5)
         
-        ctk.CTkLabel(maf, text="MAX MAF", font=("Arial", 12), 
-                    text_color="#aaa").pack(pady=(10, 0))
+        ctk.CTkLabel(maf, text="MAX MAF", font=("Arial", 10), 
+                    text_color="#aaa").pack(pady=(5, 0))
         self.max_maf = ctk.CTkLabel(maf, text="255.0 g/s",
-                                    font=("Arial", 20, "bold"), text_color="#00c896")
+                                    font=("Arial", 16, "bold"), text_color="#00c896")
         self.max_maf.pack()
         
         self.pages.append(page)
@@ -308,50 +340,64 @@ class OBDDashboard(ctk.CTk):
         page = ctk.CTkFrame(self.pages_frame, fg_color="#1a1a1e")
         
         ctk.CTkLabel(page, text="Diagnostik & Felkoder",
-                    font=("Arial", 20, "bold"), text_color="#00c896").pack(pady=10)
+                    font=("Arial", 16, "bold"), text_color="#00c896").pack(pady=8)
         
         data = ctk.CTkFrame(page, fg_color="transparent")
-        data.pack(pady=30)
+        data.pack(pady=15)
         
         dist = ctk.CTkFrame(data, fg_color="transparent")
-        dist.pack(pady=20)
+        dist.pack(pady=10)
         
         ctk.CTkLabel(dist, text="AVSTÅND SEDAN FELKODER RENSADES",
-                    font=("Arial", 12), text_color="#aaa").pack()
+                    font=("Arial", 11, "bold"), text_color="#aaa").pack()
         self.dist_lbl = ctk.CTkLabel(dist, text="0 km",
-                                     font=("Arial", 28, "bold"), text_color="#00c896")
+                                     font=("Arial", 24, "bold"), text_color="#00c896")
         self.dist_lbl.pack()
         
         tm = ctk.CTkFrame(data, fg_color="transparent")
-        tm.pack(pady=20)
+        tm.pack(pady=10)
         
         ctk.CTkLabel(tm, text="TID SEDAN FELKODER RENSADES",
-                    font=("Arial", 12), text_color="#aaa").pack()
+                    font=("Arial", 11, "bold"), text_color="#aaa").pack()
         self.time_lbl = ctk.CTkLabel(tm, text="00:00:00",
-                                     font=("Arial", 28, "bold"), text_color="#00c896")
+                                     font=("Arial", 24, "bold"), text_color="#00c896")
         self.time_lbl.pack()
         
         btns = ctk.CTkFrame(page, fg_color="transparent")
-        btns.pack(pady=30)
+        btns.pack(pady=20)
         
-        ctk.CTkButton(btns, text="LÄS FELKODER", width=300, height=50,
-                     font=("Arial", 16, "bold"), 
+        ctk.CTkButton(btns, text="LÄS FELKODER", width=250, height=45,
+                     font=("Arial", 14, "bold"), 
                      corner_radius=8,
-                     command=self._get_dtc).pack(side="left", padx=10)
+                     command=self._get_dtc).pack(side="left", padx=8)
         
-        ctk.CTkButton(btns, text="RENSA FELKODER", width=300, height=50,
-                     font=("Arial", 16, "bold"), 
+        ctk.CTkButton(btns, text="RENSA FELKODER", width=250, height=45,
+                     font=("Arial", 14, "bold"), 
                      fg_color="#8a3a3e", 
                      hover_color="#aa5055",
                      corner_radius=8,
-                     command=self._clear_dtc).pack(side="left", padx=10)
+                     command=self._clear_dtc).pack(side="left", padx=8)
         
         self.pages.append(page)
     
+    def _make_switch_command(self, page_idx):
+        """Skapa kommando för att byta sida."""
+        def switch_cmd():
+            self._switch(page_idx)
+        return switch_cmd
+    
     def _switch(self, idx):
         """Byt sida."""
+        if idx == self.current_page:
+            return
+        
+        self.current_page = idx
+        
         for i, page in enumerate(self.pages):
-            page.pack(fill="both", expand=True) if i == idx else page.pack_forget()
+            if i == idx:
+                page.pack(fill="both", expand=True)
+            else:
+                page.pack_forget()
         
         for i, btn in enumerate(self.nav_btns):
             if i == idx:
@@ -417,9 +463,14 @@ class OBDDashboard(ctk.CTk):
     
     def _start_updates(self):
         """Starta uppdateringar."""
+        self._running = True
+        
         def update():
-            while True:
-                self.after(0, self._update)
+            while self._running:
+                try:
+                    self.after(0, self._update)
+                except:
+                    break
                 time.sleep(0.1)
         
         threading.Thread(target=update, daemon=True).start()
