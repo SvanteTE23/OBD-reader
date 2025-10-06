@@ -88,16 +88,16 @@ class GaugeWidget(ctk.CTkCanvas):
         self.create_oval(margin, margin, outer, outer, fill="#2a2a2e", outline="#3a3a3e", width=2)
         self.create_oval(margin-5, margin-5, outer+5, outer+5, outline="#4a4a4e", width=2)
         
-        # Båge från höger botten (-45°) till vänster botten (135°) = 180° svep moturs
+        # Båge från vänster botten (225°) till höger botten (-45°/315°) = 270° svep medurs
         arc_margin = int(self.size * 0.14)
         self.create_arc(arc_margin, arc_margin, self.size-arc_margin, self.size-arc_margin, 
-                       start=135, extent=-180, outline="#3a3a3e", width=10, style="arc")
+                       start=225, extent=-270, outline="#3a3a3e", width=10, style="arc")
         
         ratio = (self.value - self.min_val) / (self.max_val - self.min_val)
-        extent = -180 * ratio
+        extent = -270 * ratio
         
         self.create_arc(arc_margin, arc_margin, self.size-arc_margin, self.size-arc_margin, 
-                       start=135, extent=extent, outline="#00c896", width=10, style="arc")
+                       start=225, extent=extent, outline="#00c896", width=10, style="arc")
         
         self._draw_marks()
         self._draw_needle(ratio)
@@ -106,9 +106,9 @@ class GaugeWidget(ctk.CTkCanvas):
         self.create_oval(self.cx-dot_size, self.cy-dot_size, self.cx+dot_size, self.cy+dot_size, 
                         fill="#4a4a4e", outline="#5a5a5e")
         
-        font_val = int(self.size * 0.10)
-        font_unit = int(self.size * 0.045)
-        font_title = int(self.size * 0.055)
+        font_val = int(self.size * 0.12)
+        font_unit = int(self.size * 0.055)
+        font_title = int(self.size * 0.065)
         
         # Värde och enhet i mitten
         self.create_text(self.cx, self.cy + int(self.size*0.01), text=f"{int(self.value)}", 
@@ -126,9 +126,9 @@ class GaugeWidget(ctk.CTkCanvas):
         mark_inner = int(self.size * 0.27)
         text_radius = int(self.size * 0.23)
         
-        # 9 markeringar från 135° (vänster botten) till -45° (höger botten) moturs
+        # 9 markeringar från 225° (vänster botten) till -45° (höger botten) medurs
         for i in range(9):
-            angle = math.radians(135 - (180 * i / 8))
+            angle = math.radians(225 - (270 * i / 8))
             x1, y1 = self.cx + mark_outer * math.cos(angle), self.cy - mark_outer * math.sin(angle)
             x2, y2 = self.cx + mark_inner * math.cos(angle), self.cy - mark_inner * math.sin(angle)
             
@@ -138,15 +138,15 @@ class GaugeWidget(ctk.CTkCanvas):
             x_text = self.cx + text_radius * math.cos(angle)
             y_text = self.cy - text_radius * math.sin(angle)
             
-            font_size = int(self.size * 0.04)
+            font_size = int(self.size * 0.05)
             self.create_text(x_text, y_text, text=str(int(val)), 
                            fill="#8a8a8e", font=("Arial", font_size))
     
     def _draw_needle(self, ratio):
         """Rita visare."""
         needle_len = int(self.size * 0.30)
-        # Visare går från 135° till -45° (180° svep moturs)
-        angle = math.radians(135 - (180 * ratio))
+        # Visare går från 225° (vänster botten) till -45° (höger botten) medurs
+        angle = math.radians(225 - (270 * ratio))
         x_end = self.cx + needle_len * math.cos(angle)
         y_end = self.cy - needle_len * math.sin(angle)
         
@@ -230,13 +230,13 @@ class OBDDashboard(ctk.CTk):
         gauges = ctk.CTkFrame(page, fg_color="transparent")
         gauges.pack(pady=5)
         
-        self.speed = GaugeWidget(gauges, "HASTIGHET", 0, 200, "km/h", size=160)
+        self.speed = GaugeWidget(gauges, "HASTIGHET", 0, 200, "km/h", size=200)
         self.speed.pack(side="left", padx=5)
         
-        self.rpm = GaugeWidget(gauges, "VARVTAL", 0, 8000, "rpm", size=160)
+        self.rpm = GaugeWidget(gauges, "VARVTAL", 0, 8000, "rpm", size=200)
         self.rpm.pack(side="left", padx=5)
         
-        self.throttle = GaugeWidget(gauges, "GAS", 0, 100, "%", size=160)
+        self.throttle = GaugeWidget(gauges, "GAS", 0, 100, "%", size=200)
         self.throttle.pack(side="left", padx=5)
         
         load_frame = ctk.CTkFrame(page, fg_color="transparent")
@@ -286,13 +286,13 @@ class OBDDashboard(ctk.CTk):
         gauges = ctk.CTkFrame(page, fg_color="transparent")
         gauges.pack(pady=15)
         
-        self.coolant = GaugeWidget(gauges, "KYLVÄTSKA", -40, 120, "°C", size=180)
+        self.coolant = GaugeWidget(gauges, "KYLVÄTSKA", -40, 120, "°C", size=200)
         self.coolant.pack(side="left", padx=15)
         
-        self.intake_t = GaugeWidget(gauges, "INSUG", -40, 80, "°C", size=180)
+        self.intake_t = GaugeWidget(gauges, "INSUG", -40, 80, "°C", size=200)
         self.intake_t.pack(side="left", padx=15)
         
-        self.oil = GaugeWidget(gauges, "OLJA", 0, 150, "°C", size=180)
+        self.oil = GaugeWidget(gauges, "OLJA", 0, 150, "°C", size=200)
         self.oil.pack(side="left", padx=15)
         
         self.pages.append(page)
@@ -307,13 +307,13 @@ class OBDDashboard(ctk.CTk):
         gauges = ctk.CTkFrame(page, fg_color="transparent")
         gauges.pack(pady=8)
         
-        self.fuel_p = GaugeWidget(gauges, "TRYCK", 0, 600, "kPa", size=160)
+        self.fuel_p = GaugeWidget(gauges, "TRYCK", 0, 600, "kPa", size=200)
         self.fuel_p.pack(side="left", padx=8)
         
-        self.fuel_r = GaugeWidget(gauges, "FLÖDE", 0, 50, "L/h", size=160)
+        self.fuel_r = GaugeWidget(gauges, "FLÖDE", 0, 50, "L/h", size=200)
         self.fuel_r.pack(side="left", padx=8)
         
-        self.intake_p = GaugeWidget(gauges, "INSUG", 0, 300, "kPa", size=160)
+        self.intake_p = GaugeWidget(gauges, "INSUG", 0, 300, "kPa", size=200)
         self.intake_p.pack(side="left", padx=8)
         
         maf = ctk.CTkFrame(page, fg_color="transparent")
@@ -471,7 +471,7 @@ class OBDDashboard(ctk.CTk):
                     self.after(0, self._update)
                 except:
                     break
-                time.sleep(0.1)
+                time.sleep(0.3)
         
         threading.Thread(target=update, daemon=True).start()
     
