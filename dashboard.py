@@ -174,7 +174,9 @@ class OBDDashboard(ctk.CTk):
         for i, name in enumerate(["Huvud", "Temperatur", "Bränsle & Luft", "Diagnostik"]):
             btn = ctk.CTkButton(nav, text=name, width=200, height=40,
                               command=lambda idx=i: self._switch(idx),
-                              font=("Arial", 14, "bold"))
+                              font=("Arial", 14, "bold"),
+                              corner_radius=8,
+                              border_width=0)
             btn.pack(side="left", padx=5)
             self.nav_btns.append(btn)
         
@@ -333,10 +335,15 @@ class OBDDashboard(ctk.CTk):
         btns.pack(pady=30)
         
         ctk.CTkButton(btns, text="LÄS FELKODER", width=300, height=50,
-                     font=("Arial", 16, "bold"), command=self._get_dtc).pack(side="left", padx=10)
+                     font=("Arial", 16, "bold"), 
+                     corner_radius=8,
+                     command=self._get_dtc).pack(side="left", padx=10)
         
         ctk.CTkButton(btns, text="RENSA FELKODER", width=300, height=50,
-                     font=("Arial", 16, "bold"), fg_color="#8a3a3e", hover_color="#aa5055",
+                     font=("Arial", 16, "bold"), 
+                     fg_color="#8a3a3e", 
+                     hover_color="#aa5055",
+                     corner_radius=8,
                      command=self._clear_dtc).pack(side="left", padx=10)
         
         self.pages.append(page)
@@ -348,9 +355,9 @@ class OBDDashboard(ctk.CTk):
         
         for i, btn in enumerate(self.nav_btns):
             if i == idx:
-                btn.configure(fg_color="#00c896", text_color="#1a1a1e")
+                btn.configure(fg_color="#00c896", hover_color="#00b080", text_color="#1a1a1e")
             else:
-                btn.configure(fg_color=("#3B8ED0", "#1F6AA5"), text_color="white")
+                btn.configure(fg_color="#3B8ED0", hover_color="#1F6AA5", text_color="white")
     
     def _get_dtc(self):
         """Läs felkoder."""
