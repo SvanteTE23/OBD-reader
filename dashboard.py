@@ -201,7 +201,7 @@ class OBDDashboard(ctk.CTk):
         nav.pack(pady=5)
         
         self.nav_btns = []
-        self.current_page = 0
+        self.current_page = -1  # Sätt till -1 så att första _switch(0) fungerar
         
         for i, name in enumerate(["Huvud", "Temperatur", "Bränsle & Luft", "Diagnostik"]):
             btn = ctk.CTkButton(nav, text=name, width=180, height=35,
