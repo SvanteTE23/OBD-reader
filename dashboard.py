@@ -23,6 +23,20 @@ except ImportError:
 obd_connection = None
 read_json = None
 
+# Vanliga felkodsbeskrivningar
+DTC_DESCRIPTIONS = {
+    "P0420": "Katalysator ineffektiv",
+    "P0171": "Bränsleblandning för mager",
+    "P0101": "Luftflödesmätare fel",
+    "P0300": "Slumpmässig förbränningsfel",
+    "C0035": "ABS hjulsensor fel",
+    "P0128": "Kylvätska för kall",
+    "P0442": "EVAP system läckage",
+    "P0455": "EVAP system stort läckage",
+    "P0113": "Insugstemp sensor hög",
+    "P0118": "Kylvätsketemp sensor hög"
+}
+
 
 def initialize_obd_connection():
     """Initialisera OBD-anslutning."""
@@ -357,40 +371,58 @@ class OBDDashboard(ctk.CTk):
                     font=("Arial", 16, "bold"), text_color="#00c896").pack(pady=8)
         
         data = ctk.CTkFrame(page, fg_color="transparent")
-        data.pack(pady=15)
+        data.pack(pady=10)
         
         dist = ctk.CTkFrame(data, fg_color="transparent")
-        dist.pack(pady=10)
+        dist.pack(side="left", padx=30)
         
-        ctk.CTkLabel(dist, text="AVSTÅND SEDAN FELKODER RENSADES",
-                    font=("Arial", 11, "bold"), text_color="#aaa").pack()
+        ctk.CTkLabel(dist, text="AVSTÅND SEDAN RENSNING",
+                    font=("Arial", 10, "bold"), text_color="#aaa").pack()
         self.dist_lbl = ctk.CTkLabel(dist, text="0 km",
-                                     font=("Arial", 24, "bold"), text_color="#00c896")
+                                     font=("Arial", 20, "bold"), text_color="#00c896")
         self.dist_lbl.pack()
         
         tm = ctk.CTkFrame(data, fg_color="transparent")
-        tm.pack(pady=10)
+        tm.pack(side="left", padx=30)
         
-        ctk.CTkLabel(tm, text="TID SEDAN FELKODER RENSADES",
-                    font=("Arial", 11, "bold"), text_color="#aaa").pack()
+        ctk.CTkLabel(tm, text="TID SEDAN RENSNING",
+                    font=("Arial", 10, "bold"), text_color="#aaa").pack()
         self.time_lbl = ctk.CTkLabel(tm, text="00:00:00",
-                                     font=("Arial", 24, "bold"), text_color="#00c896")
+                                     font=("Arial", 20, "bold"), text_color="#00c896")
         self.time_lbl.pack()
         
         btns = ctk.CTkFrame(page, fg_color="transparent")
-        btns.pack(pady=20)
+        btns.pack(pady=15)
         
-        ctk.CTkButton(btns, text="LÄS FELKODER", width=250, height=45,
-                     font=("Arial", 14, "bold"), 
+        ctk.CTkButton(btns, text="LÄS FELKODER", width=250, height=40,
+                     font=("Arial", 13, "bold"), 
                      corner_radius=8,
                      command=self._get_dtc).pack(side="left", padx=8)
         
-        ctk.CTkButton(btns, text="RENSA FELKODER", width=250, height=45,
-                     font=("Arial", 14, "bold"), 
+        ctk.CTkButton(btns, text="RENSA FELKODER", width=250, height=40,
+                     font=("Arial", 13, "bold"), 
                      fg_color="#8a3a3e", 
                      hover_color="#aa5055",
                      corner_radius=8,
                      command=self._clear_dtc).pack(side="left", padx=8)
+        
+        # Felkodsvisning
+        dtc_frame = ctk.CTkFrame(page, fg_color="#2a2a2e", corner_radius=8)
+        dtc_frame.pack(pady=10, padx=20, fill="both", expand=True)
+        
+        ctk.CTkLabel(dtc_frame, text="FELKODER",
+                    font=("Arial", 12, "bold"), text_color="#00c896").pack(pady=(10, 5))
+        
+        # Scrollbar för felkoder
+        self.dtc_display = ctk.CTkTextbox(dtc_frame, 
+                                          height=150,
+                                          font=("Courier New", 11),
+                                          fg_color="#1a1a1e",
+                                          text_color="#dcdcdc",
+                                          wrap="word")
+        self.dtc_display.pack(pady=5, padx=10, fill="both", expand=True)
+        self.dtc_display.insert("1.0", "Klicka på 'LÄS FELKODER' för att visa felkoder...")
+        self.dtc_display.configure(state="disabled")
         
         self.pages.append(page)
     
@@ -467,27 +499,46 @@ class OBDDashboard(ctk.CTk):
         self.after(0, lambda: self._switch(next_page))
     
     def _get_dtc(self):
-        """Läs felkoder."""
+        """Läs felkoder och visa i textbox."""
+        # Aktivera textbox för uppdatering
+        self.dtc_display.configure(state="normal")
+        self.dtc_display.delete("1.0", "end")
+        
         if not self.use_sim:
             try:
                 result = read_obd_data(self.commands.get('get_dtc'))
-                if not result:
-                    messagebox.showinfo("Felkoder", "Inga felkoder.\n\nStatus: OK")
+                if not result or len(result) == 0:
+                    self.dtc_display.insert("1.0", "✓ INGA FELKODER\n\nStatus: OK\nSystemet fungerar normalt.")
+                    self.dtc_display.tag_config("ok", foreground="#00c896")
                 else:
-                    codes = [f"{c[0]} - {c[1]}" if hasattr(c, '__iter__') and len(c) >= 2 
-                            else str(c) for c in result]
-                    msg = f"Hittade {len(codes)} felkod(er):\n\n" + "\n".join(codes)
-                    messagebox.showwarning("Felkoder", msg + "\n\nKonsultera manual.")
+                    codes = [f"{c[0]}" if hasattr(c, '__iter__') and len(c) >= 2 else str(c) for c in result]
+                    self.dtc_display.insert("1.0", f"⚠ HITTADE {len(codes)} FELKOD(ER):\n\n")
+                    
+                    for code in codes:
+                        desc = DTC_DESCRIPTIONS.get(code, "Okänd felkod")
+                        self.dtc_display.insert("end", f"{code}: {desc}\n")
+                    
+                    self.dtc_display.insert("end", "\nKonsultera manual för detaljer.")
             except Exception as e:
-                messagebox.showerror("Fel", f"Kunde inte läsa felkoder: {e}")
+                self.dtc_display.insert("1.0", f"✗ FEL VID LÄSNING\n\n{str(e)}\n\nKontrollera OBD-anslutning.")
         else:
-            codes = random.sample(["P0420", "P0171", "P0101", "P0300", "C0035"], 
-                                random.randint(0, 3))
-            if not codes:
-                messagebox.showinfo("Felkoder", "Inga felkoder.\n\nStatus: OK")
+            # Simulering
+            num_codes = random.randint(0, 3)
+            if num_codes == 0:
+                self.dtc_display.insert("1.0", "✓ INGA FELKODER\n\nStatus: OK\nSystemet fungerar normalt.")
             else:
-                msg = f"Hittade {len(codes)} felkod(er):\n\n" + "\n".join(codes)
-                messagebox.showwarning("Felkoder", msg + "\n\nKonsultera manual.")
+                available_codes = list(DTC_DESCRIPTIONS.keys())
+                codes = random.sample(available_codes, num_codes)
+                self.dtc_display.insert("1.0", f"⚠ HITTADE {len(codes)} FELKOD(ER):\n\n")
+                
+                for code in codes:
+                    desc = DTC_DESCRIPTIONS[code]
+                    self.dtc_display.insert("end", f"{code}: {desc}\n")
+                
+                self.dtc_display.insert("end", "\nKonsultera manual för detaljer.")
+        
+        # Lås textbox igen
+        self.dtc_display.configure(state="disabled")
     
     def _clear_dtc(self):
         """Rensa felkoder."""
@@ -500,13 +551,24 @@ class OBDDashboard(ctk.CTk):
                     read_obd_data(self.commands.get('clear_dtc'))
                     self.dist_dtc = 0
                     self.time_dtc = 0
-                    messagebox.showinfo("Klart", "Felkoder rensade.")
+                    
+                    # Uppdatera display
+                    self.dtc_display.configure(state="normal")
+                    self.dtc_display.delete("1.0", "end")
+                    self.dtc_display.insert("1.0", "✓ FELKODER RENSADE\n\nAlla felkoder har tagits bort.\nAvstånd och tid har återställts.")
+                    self.dtc_display.configure(state="disabled")
+                    
                 except Exception as e:
                     messagebox.showerror("Fel", f"Kunde inte rensa: {e}")
             else:
                 self.dist_dtc = 0
                 self.time_dtc = 0
-                messagebox.showinfo("Klart", "Felkoder rensade.")
+                
+                # Uppdatera display
+                self.dtc_display.configure(state="normal")
+                self.dtc_display.delete("1.0", "end")
+                self.dtc_display.insert("1.0", "✓ FELKODER RENSADE\n\nAlla felkoder har tagits bort.\nAvstånd och tid har återställts.")
+                self.dtc_display.configure(state="disabled")
     
     def _read(self, cmd, default=0):
         """Läs OBD-värde."""
