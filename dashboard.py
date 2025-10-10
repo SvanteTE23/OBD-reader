@@ -201,10 +201,6 @@ class OBDDashboard(ctk.CTk):
         self.dist_dtc = 0
         self.time_dtc = 0
         
-        # För dubbelklicks-detektering
-        self.last_button_press = 0
-        self.double_click_timeout = 0.5  # 0.5 sekunder för dubbelklick
-        
         self._setup_ui()
         self._setup_gpio()
         self._start_updates()
@@ -452,46 +448,33 @@ class OBDDashboard(ctk.CTk):
                 btn.configure(fg_color="#3B8ED0", hover_color="#1F6AA5", text_color="white")
     
     def _setup_gpio(self):
-        """Konfigurera GPIO-knapp för Raspberry Pi."""
+        """Konfigurera GPIO-knappar för Raspberry Pi."""
         if not GPIO_AVAILABLE:
             return
         
         try:
             # GPIO-pinnnummer (BCM-numrering)
-            gpio_pin = 17  # GPIO 17 (Pin 11) för att byta sida
+            gpio_next = 17   # GPIO 17 (Pin 11) - Byt sida
+            gpio_read = 27   # GPIO 27 (Pin 13) - Läs felkoder
+            gpio_clear = 22  # GPIO 22 (Pin 15) - Rensa felkoder
             
-            # Skapa knapp med gpiozero (automatiskt pull-up och debounce)
-            self.gpio_button = Button(gpio_pin, pull_up=True, bounce_time=0.2)
+            # Skapa knappar med gpiozero (automatiskt pull-up och debounce)
+            self.gpio_button_next = Button(gpio_next, pull_up=True, bounce_time=0.2)
+            self.gpio_button_read = Button(gpio_read, pull_up=True, bounce_time=0.2)
+            self.gpio_button_clear = Button(gpio_clear, pull_up=True, bounce_time=0.2)
             
-            # Koppla knapp-händelse till sidbytesfunktion
-            self.gpio_button.when_pressed = self._gpio_button_pressed
+            # Koppla knapp-händelser
+            self.gpio_button_next.when_pressed = self._gpio_next_page
+            self.gpio_button_read.when_pressed = lambda: self.after(0, self._get_dtc)
+            self.gpio_button_clear.when_pressed = lambda: self.after(0, self._clear_dtc)
             
-            print(f"✓ GPIO-knapp konfigurerad på GPIO {gpio_pin} (Pin 11)")
-            print("  Tryck: Byt sida")
-            print("  Dubbelklick på Diagnostik: Läs felkoder")
+            print("✓ GPIO-knappar konfigurerade:")
+            print(f"  GPIO {gpio_next} (Pin 11): Byt sida")
+            print(f"  GPIO {gpio_read} (Pin 13): Läs felkoder")
+            print(f"  GPIO {gpio_clear} (Pin 15): Rensa felkoder")
             
         except Exception as e:
             print(f"✗ GPIO-konfiguration misslyckades: {e}")
-    
-    def _gpio_button_pressed(self):
-        """Hantera knapp-tryck - detektera enkelt vs dubbelklick."""
-        current_time = time.time()
-        time_since_last = current_time - self.last_button_press
-        
-        # Dubbelklick detekterat
-        if time_since_last < self.double_click_timeout:
-            # Om vi är på diagnostiksidan (sida 3), läs felkoder
-            if self.current_page == 3:
-                print("🔍 Dubbelklick - läser felkoder...")
-                self.after(0, self._get_dtc)
-            else:
-                # Dubbelklick på annan sida - byt ändå
-                self._gpio_next_page()
-        else:
-            # Enkelklick - byt sida
-            self._gpio_next_page()
-        
-        self.last_button_press = current_time
     
     def _gpio_next_page(self):
         """Byt till nästa sida via GPIO-knapp (loopar runt)."""
@@ -541,26 +524,10 @@ class OBDDashboard(ctk.CTk):
         self.dtc_display.configure(state="disabled")
     
     def _clear_dtc(self):
-        """Rensa felkoder."""
-        if messagebox.askyesno("Rensa",
-            "Rensa alla felkoder?\n\nDetta återställer:\n"
-            "- Alla felkoder\n- Avstånd\n- Tid"):
-            
-            if not self.use_sim:
-                try:
-                    read_obd_data(self.commands.get('clear_dtc'))
-                    self.dist_dtc = 0
-                    self.time_dtc = 0
-                    
-                    # Uppdatera display
-                    self.dtc_display.configure(state="normal")
-                    self.dtc_display.delete("1.0", "end")
-                    self.dtc_display.insert("1.0", "✓ FELKODER RENSADE\n\nAlla felkoder har tagits bort.\nAvstånd och tid har återställts.")
-                    self.dtc_display.configure(state="disabled")
-                    
-                except Exception as e:
-                    messagebox.showerror("Fel", f"Kunde inte rensa: {e}")
-            else:
+        """Rensa felkoder - ingen popup."""
+        if not self.use_sim:
+            try:
+                read_obd_data(self.commands.get('clear_dtc'))
                 self.dist_dtc = 0
                 self.time_dtc = 0
                 
@@ -569,6 +536,22 @@ class OBDDashboard(ctk.CTk):
                 self.dtc_display.delete("1.0", "end")
                 self.dtc_display.insert("1.0", "✓ FELKODER RENSADE\n\nAlla felkoder har tagits bort.\nAvstånd och tid har återställts.")
                 self.dtc_display.configure(state="disabled")
+                
+            except Exception as e:
+                # Visa fel i displayen istället för popup
+                self.dtc_display.configure(state="normal")
+                self.dtc_display.delete("1.0", "end")
+                self.dtc_display.insert("1.0", f"✗ FEL VID RENSNING\n\n{str(e)}\n\nKontrollera OBD-anslutning.")
+                self.dtc_display.configure(state="disabled")
+        else:
+            self.dist_dtc = 0
+            self.time_dtc = 0
+            
+            # Uppdatera display
+            self.dtc_display.configure(state="normal")
+            self.dtc_display.delete("1.0", "end")
+            self.dtc_display.insert("1.0", "✓ FELKODER RENSADE\n\nAlla felkoder har tagits bort.\nAvstånd och tid har återställts.")
+            self.dtc_display.configure(state="disabled")
     
     def _read(self, cmd, default=0):
         """Läs OBD-värde."""
@@ -669,9 +652,14 @@ class OBDDashboard(ctk.CTk):
         self._running = False
         
         # Städa GPIO
-        if GPIO_AVAILABLE and hasattr(self, 'gpio_button'):
+        if GPIO_AVAILABLE:
             try:
-                self.gpio_button.close()
+                if hasattr(self, 'gpio_button_next'):
+                    self.gpio_button_next.close()
+                if hasattr(self, 'gpio_button_read'):
+                    self.gpio_button_read.close()
+                if hasattr(self, 'gpio_button_clear'):
+                    self.gpio_button_clear.close()
                 print("✓ GPIO städat")
             except:
                 pass
