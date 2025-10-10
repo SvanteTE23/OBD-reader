@@ -422,7 +422,7 @@ class OBDDashboard(ctk.CTk):
         
         try:
             # GPIO-pinnnummer (BCM-numrering)
-            self.gpio_button_pin = 17  # GPIO 17 för att byta sida
+            self.gpio_button_pin = 26  # GPIO 17 för att byta sida
             
             # Konfigurera GPIO
             GPIO.setmode(GPIO.BCM)
