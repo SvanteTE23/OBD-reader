@@ -12,13 +12,13 @@ import time
 from tkinter import messagebox
 import customtkinter as ctk
 
-# Försök importera GPIO för Raspberry Pi
+# Försök importera gpiozero för Raspberry Pi
 try:
-    import RPi.GPIO as GPIO
+    from gpiozero import Button
     GPIO_AVAILABLE = True
 except ImportError:
     GPIO_AVAILABLE = False
-    print("⚠ RPi.GPIO ej tillgängligt - kör inte på Raspberry Pi")
+    print("⚠ gpiozero ej tillgängligt - kör inte på Raspberry Pi")
 
 obd_connection = None
 read_json = None
@@ -422,21 +422,15 @@ class OBDDashboard(ctk.CTk):
         
         try:
             # GPIO-pinnnummer (BCM-numrering)
-            self.gpio_button_pin = 26  # GPIO 17 för att byta sida
+            gpio_pin = 17  # GPIO 17 (Pin 11) för att byta sida
             
-            # Konfigurera GPIO
-            GPIO.setmode(GPIO.BCM)
-            GPIO.setwarnings(False)
+            # Skapa knapp med gpiozero (automatiskt pull-up och debounce)
+            self.gpio_button = Button(gpio_pin, pull_up=True, bounce_time=0.2)
             
-            # Sätt upp knappen med pull-up resistor
-            GPIO.setup(self.gpio_button_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+            # Koppla knapp-händelse till sidbytesfunktion
+            self.gpio_button.when_pressed = self._gpio_next_page
             
-            # Event callback med debounce (200ms)
-            GPIO.add_event_detect(self.gpio_button_pin, GPIO.FALLING, 
-                                callback=lambda ch: self._gpio_next_page(), 
-                                bouncetime=200)
-            
-            print(f"✓ GPIO-knapp konfigurerad på GPIO {self.gpio_button_pin}")
+            print(f"✓ GPIO-knapp konfigurerad på GPIO {gpio_pin} (Pin 11)")
             print("  Tryck på knappen för att byta sida")
             
         except Exception as e:
@@ -588,9 +582,9 @@ class OBDDashboard(ctk.CTk):
         self._running = False
         
         # Städa GPIO
-        if GPIO_AVAILABLE:
+        if GPIO_AVAILABLE and hasattr(self, 'gpio_button'):
             try:
-                GPIO.cleanup()
+                self.gpio_button.close()
                 print("✓ GPIO städat")
             except:
                 pass
