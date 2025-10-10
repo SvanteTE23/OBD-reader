@@ -1,6 +1,7 @@
 """
 OBD Dashboard - Modernt GUI för fordonsdiagnostik
 Stöd för både simulerad och riktig OBD-II data
+Stöd för fysiska knappar på Raspberry Pi via GPIO
 """
 
 import sys
@@ -10,6 +11,14 @@ import threading
 import time
 from tkinter import messagebox
 import customtkinter as ctk
+
+# Försök importera GPIO för Raspberry Pi
+try:
+    import RPi.GPIO as GPIO
+    GPIO_AVAILABLE = True
+except ImportError:
+    GPIO_AVAILABLE = False
+    print("⚠ RPi.GPIO ej tillgängligt - kör inte på Raspberry Pi")
 
 obd_connection = None
 read_json = None
@@ -179,6 +188,7 @@ class OBDDashboard(ctk.CTk):
         self.time_dtc = 0
         
         self._setup_ui()
+        self._setup_gpio()
         self._start_updates()
         
     def _setup_ui(self):
@@ -405,6 +415,38 @@ class OBDDashboard(ctk.CTk):
             else:
                 btn.configure(fg_color="#3B8ED0", hover_color="#1F6AA5", text_color="white")
     
+    def _setup_gpio(self):
+        """Konfigurera GPIO-knapp för Raspberry Pi."""
+        if not GPIO_AVAILABLE:
+            return
+        
+        try:
+            # GPIO-pinnnummer (BCM-numrering)
+            self.gpio_button_pin = 17  # GPIO 17 för att byta sida
+            
+            # Konfigurera GPIO
+            GPIO.setmode(GPIO.BCM)
+            GPIO.setwarnings(False)
+            
+            # Sätt upp knappen med pull-up resistor
+            GPIO.setup(self.gpio_button_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+            
+            # Event callback med debounce (200ms)
+            GPIO.add_event_detect(self.gpio_button_pin, GPIO.FALLING, 
+                                callback=lambda ch: self._gpio_next_page(), 
+                                bouncetime=200)
+            
+            print(f"✓ GPIO-knapp konfigurerad på GPIO {self.gpio_button_pin}")
+            print("  Tryck på knappen för att byta sida")
+            
+        except Exception as e:
+            print(f"✗ GPIO-konfiguration misslyckades: {e}")
+    
+    def _gpio_next_page(self):
+        """Byt till nästa sida via GPIO-knapp (loopar runt)."""
+        next_page = (self.current_page + 1) % len(self.pages)
+        self.after(0, lambda: self._switch(next_page))
+    
     def _get_dtc(self):
         """Läs felkoder."""
         if not self.use_sim:
@@ -540,6 +582,20 @@ class OBDDashboard(ctk.CTk):
         self.dist_lbl.configure(text=f"{self.dist_dtc:.1f} km")
         dh, dm, ds = int(self.time_dtc // 3600), int((self.time_dtc % 3600) // 60), int(self.time_dtc % 60)
         self.time_lbl.configure(text=f"{dh:02d}:{dm:02d}:{ds:02d}")
+    
+    def destroy(self):
+        """Cleanup när programmet stängs."""
+        self._running = False
+        
+        # Städa GPIO
+        if GPIO_AVAILABLE:
+            try:
+                GPIO.cleanup()
+                print("✓ GPIO städat")
+            except:
+                pass
+        
+        super().destroy()
 
 
 if __name__ == "__main__":

@@ -1,3 +1,4 @@
 Pint==0.7.2
 pyserial==3.5
 customtkinter>=5.2.0
+RPi.GPIO>=0.7.0; platform_machine=="armv7l" or platform_machine=="aarch64"

@@ -14,6 +14,7 @@ Ett intuitivt dashboard för OBD-II diagnostik med stöd för både simulerad oc
 - **Live-uppdatering** 10 gånger per sekund
 - **Simuleringsläge** för testning utan bil
 - **Svenskt gränssnitt**
+- **GPIO-stöd för Raspberry Pi** - Byt flikar med fysiska knappar!
 
 ## 🚀 Snabbstart
 
@@ -43,13 +44,21 @@ python dashboard.py --real
 
 1. **Anslut OBD-II adapter** till fordonets diagnosuttag
 2. **Starta programmet** i önskat läge
-3. **Navigera mellan sidor** med knapparna högst upp
+3. **Navigera mellan sidor** med knapparna högst upp eller fysiska GPIO-knappar (Raspberry Pi)
 4. **Övervaka live-data** från din bil
 
 ### Diagnostikfunktioner:
 - Läs felkoder (DTC)
 - Rensa felkoder
 - Visa tid/avstånd sedan felkoder rensades
+
+### GPIO-knappar (Raspberry Pi):
+För detaljer om hur du kopplar fysisk knapp, se [GPIO_SETUP.md](GPIO_SETUP.md)
+
+**Standard GPIO-pin:**
+- GPIO 17 - Byt till nästa sida (loopar: Sida 1 → 2 → 3 → 4 → 1 → ...)
+
+**Koppling:** GPIO 17 ----[Knapp]---- GND
 
 ## 🎨 Design
 
