@@ -187,6 +187,10 @@ class OBDDashboard(ctk.CTk):
         self.dist_dtc = 0
         self.time_dtc = 0
         
+        # För dubbelklicks-detektering
+        self.last_button_press = 0
+        self.double_click_timeout = 0.5  # 0.5 sekunder för dubbelklick
+        
         self._setup_ui()
         self._setup_gpio()
         self._start_updates()
@@ -428,13 +432,34 @@ class OBDDashboard(ctk.CTk):
             self.gpio_button = Button(gpio_pin, pull_up=True, bounce_time=0.2)
             
             # Koppla knapp-händelse till sidbytesfunktion
-            self.gpio_button.when_pressed = self._gpio_next_page
+            self.gpio_button.when_pressed = self._gpio_button_pressed
             
             print(f"✓ GPIO-knapp konfigurerad på GPIO {gpio_pin} (Pin 11)")
-            print("  Tryck på knappen för att byta sida")
+            print("  Tryck: Byt sida")
+            print("  Dubbelklick på Diagnostik: Läs felkoder")
             
         except Exception as e:
             print(f"✗ GPIO-konfiguration misslyckades: {e}")
+    
+    def _gpio_button_pressed(self):
+        """Hantera knapp-tryck - detektera enkelt vs dubbelklick."""
+        current_time = time.time()
+        time_since_last = current_time - self.last_button_press
+        
+        # Dubbelklick detekterat
+        if time_since_last < self.double_click_timeout:
+            # Om vi är på diagnostiksidan (sida 3), läs felkoder
+            if self.current_page == 3:
+                print("🔍 Dubbelklick - läser felkoder...")
+                self.after(0, self._get_dtc)
+            else:
+                # Dubbelklick på annan sida - byt ändå
+                self._gpio_next_page()
+        else:
+            # Enkelklick - byt sida
+            self._gpio_next_page()
+        
+        self.last_button_press = current_time
     
     def _gpio_next_page(self):
         """Byt till nästa sida via GPIO-knapp (loopar runt)."""
