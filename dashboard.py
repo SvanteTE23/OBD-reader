@@ -379,6 +379,12 @@ class OBDDashboard(ctk.CTk):
                                                   font=("Arial", 14, "bold"), 
                                                   text_color="#00c896")
             self.toggle_mode_label.pack(side="left", padx=5)
+            
+            # Hjälptext för navigation
+            ctk.CTkLabel(self.toggle_indicator_frame, 
+                        text="💡 Håll knappen i 1s för att byta sida",
+                        font=("Arial", 9, "italic"), 
+                        text_color="#888").pack(side="right", padx=10)
         
         data = ctk.CTkFrame(page, fg_color="transparent")
         data.pack(pady=10)
