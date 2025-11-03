@@ -477,25 +477,44 @@ class OBDDashboard(ctk.CTk):
             self.gpio_toggle_read = Button(gpio_toggle_read, pull_up=True)  # Ingen debounce för toggle
             self.gpio_toggle_clear = Button(gpio_toggle_clear, pull_up=True)  # Ingen debounce för toggle
             
-            # Koppla händelse
-            self.gpio_button.when_pressed = self._gpio_button_action
+            # Variabler för att detektera långt tryck
+            self.button_press_time = None
+            self.long_press_threshold = 1.0  # 1 sekund för långt tryck
+            
+            # Koppla händelser
+            self.gpio_button.when_pressed = self._gpio_button_pressed
+            self.gpio_button.when_released = self._gpio_button_released
             
             print("✓ GPIO konfigurerat:")
             print(f"  GPIO {gpio_button} (Pin 11): Tryckknapp")
             print(f"  GPIO {gpio_toggle_read} (Pin 13): Toggle-switch LÄS")
             print(f"  GPIO {gpio_toggle_clear} (Pin 15): Toggle-switch RENSA")
-            print("\n  Byt sida: Tryck på knappen")
-            print("  På Diagnostiksida:")
-            print("    - Toggle i LÄS-läge = LÄS felkoder")
-            print("    - Toggle i RENSA-läge = RENSA felkoder")
+            print("\n  Kort tryck: Byt sida / Utför diagnostikåtgärd")
+            print("  Långt tryck (1s): Byt sida även på diagnostiksida")
             
         except Exception as e:
             print(f"✗ GPIO-konfiguration misslyckades: {e}")
     
-    def _gpio_button_action(self):
-        """Hantera tryckknapp - olika action beroende på sida och toggle."""
-        # Om vi är på diagnostiksidan (sida 3)
-        if self.current_page == 3:
+    def _gpio_button_pressed(self):
+        """Registrera när knappen trycks ned."""
+        self.button_press_time = time.time()
+    
+    def _gpio_button_released(self):
+        """Hantera tryckknapp när den släpps - olika action beroende på tid och sida."""
+        if self.button_press_time is None:
+            return
+        
+        press_duration = time.time() - self.button_press_time
+        self.button_press_time = None
+        
+        # Långt tryck (>1 sekund) = BYT SIDA (alltid)
+        if press_duration >= self.long_press_threshold:
+            print("⏱️ Långt tryck - byter sida...")
+            self.after(0, self._gpio_next_page)
+            return
+        
+        # Kort tryck = Olika beroende på sida
+        if self.current_page == 3:  # På diagnostiksidan
             # Läs toggle-läge (med pull_up=True är is_pressed=False när pin är LOW/jordad)
             read_mode_active = not self.gpio_toggle_read.is_pressed  # Pin 27 jordad = READ mode
             clear_mode_active = not self.gpio_toggle_clear.is_pressed  # Pin 22 jordad = CLEAR mode
