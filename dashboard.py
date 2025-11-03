@@ -366,6 +366,20 @@ class OBDDashboard(ctk.CTk):
         ctk.CTkLabel(page, text="Diagnostik & Felkoder",
                     font=("Arial", 16, "bold"), text_color="#00c896").pack(pady=8)
         
+        # Toggle-lägesindikator (endast synlig om GPIO finns)
+        if GPIO_AVAILABLE:
+            self.toggle_indicator_frame = ctk.CTkFrame(page, fg_color="#2a2a2e", corner_radius=8)
+            self.toggle_indicator_frame.pack(pady=(0, 5), padx=20, fill="x")
+            
+            ctk.CTkLabel(self.toggle_indicator_frame, text="TOGGLE-LÄGE:",
+                        font=("Arial", 10, "bold"), text_color="#aaa").pack(side="left", padx=10)
+            
+            self.toggle_mode_label = ctk.CTkLabel(self.toggle_indicator_frame, 
+                                                  text="● LÄS",
+                                                  font=("Arial", 14, "bold"), 
+                                                  text_color="#00c896")
+            self.toggle_mode_label.pack(side="left", padx=5)
+        
         data = ctk.CTkFrame(page, fg_color="transparent")
         data.pack(pady=10)
         
@@ -625,6 +639,19 @@ class OBDDashboard(ctk.CTk):
             ip = random.randint(30, 120)
             maf = self._read('maf', 10)
             mmaf = self._read('max_maf', 255)
+        
+        # Uppdatera toggle-lägesindikator om GPIO finns och vi är på diagnostiksidan
+        if GPIO_AVAILABLE and self.current_page == 3:
+            if hasattr(self, 'gpio_toggle_read') and hasattr(self, 'gpio_toggle_clear'):
+                read_mode_active = not self.gpio_toggle_read.is_pressed
+                clear_mode_active = not self.gpio_toggle_clear.is_pressed
+                
+                if read_mode_active:
+                    self.toggle_mode_label.configure(text="● LÄS", text_color="#00c896")
+                elif clear_mode_active:
+                    self.toggle_mode_label.configure(text="● RENSA", text_color="#ff5050")
+                else:
+                    self.toggle_mode_label.configure(text="● OKÄNT", text_color="#ffa500")
         
         self.speed.set_value(spd)
         self.rpm.set_value(r)
