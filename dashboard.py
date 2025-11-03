@@ -519,75 +519,97 @@ class OBDDashboard(ctk.CTk):
     
     def _get_dtc(self):
         """Läs felkoder och visa i textbox."""
-        # Aktivera textbox för uppdatering
+        # Visa laddningsmeddelande
         self.dtc_display.configure(state="normal")
         self.dtc_display.delete("1.0", "end")
+        self.dtc_display.insert("1.0", "🔍 LÄSER FELKODER...\n\nVänligen vänta...")
+        self.dtc_display.configure(state="disabled")
         
-        if not self.use_sim:
-            try:
-                result = read_obd_data(self.commands.get('get_dtc'))
-                if not result or len(result) == 0:
-                    self.dtc_display.insert("1.0", "✓ INGA FELKODER\n\nStatus: OK\nSystemet fungerar normalt.")
-                    self.dtc_display.tag_config("ok", foreground="#00c896")
+        # Delay och läs data i bakgrunden
+        def read_with_delay():
+            time.sleep(1.5)  # 1.5 sekunders delay
+            
+            self.after(0, lambda: self.dtc_display.configure(state="normal"))
+            self.after(0, lambda: self.dtc_display.delete("1.0", "end"))
+            
+            if not self.use_sim:
+                try:
+                    result = read_obd_data(self.commands.get('get_dtc'))
+                    if not result or len(result) == 0:
+                        self.after(0, lambda: self.dtc_display.insert("1.0", "✓ INGA FELKODER\n\nStatus: OK\nSystemet fungerar normalt."))
+                        self.after(0, lambda: self.dtc_display.tag_config("ok", foreground="#00c896"))
+                    else:
+                        codes = [f"{c[0]}" if hasattr(c, '__iter__') and len(c) >= 2 else str(c) for c in result]
+                        self.after(0, lambda: self.dtc_display.insert("1.0", f"⚠ HITTADE {len(codes)} FELKOD(ER):\n\n"))
+                        
+                        for code in codes:
+                            desc = DTC_DESCRIPTIONS.get(code, "Okänd felkod")
+                            self.after(0, lambda c=code, d=desc: self.dtc_display.insert("end", f"{c}: {d}\n"))
+                        
+                        self.after(0, lambda: self.dtc_display.insert("end", "\nKonsultera manual för detaljer."))
+                except Exception as e:
+                    self.after(0, lambda: self.dtc_display.insert("1.0", f"✗ FEL VID LÄSNING\n\n{str(e)}\n\nKontrollera OBD-anslutning."))
+            else:
+                # Simulering
+                num_codes = random.randint(0, 3)
+                if num_codes == 0:
+                    self.after(0, lambda: self.dtc_display.insert("1.0", "✓ INGA FELKODER\n\nStatus: OK\nSystemet fungerar normalt."))
                 else:
-                    codes = [f"{c[0]}" if hasattr(c, '__iter__') and len(c) >= 2 else str(c) for c in result]
-                    self.dtc_display.insert("1.0", f"⚠ HITTADE {len(codes)} FELKOD(ER):\n\n")
+                    available_codes = list(DTC_DESCRIPTIONS.keys())
+                    codes = random.sample(available_codes, num_codes)
+                    self.after(0, lambda: self.dtc_display.insert("1.0", f"⚠ HITTADE {len(codes)} FELKOD(ER):\n\n"))
                     
                     for code in codes:
-                        desc = DTC_DESCRIPTIONS.get(code, "Okänd felkod")
-                        self.dtc_display.insert("end", f"{code}: {desc}\n")
+                        desc = DTC_DESCRIPTIONS[code]
+                        self.after(0, lambda c=code, d=desc: self.dtc_display.insert("end", f"{c}: {d}\n"))
                     
-                    self.dtc_display.insert("end", "\nKonsultera manual för detaljer.")
-            except Exception as e:
-                self.dtc_display.insert("1.0", f"✗ FEL VID LÄSNING\n\n{str(e)}\n\nKontrollera OBD-anslutning.")
-        else:
-            # Simulering
-            num_codes = random.randint(0, 3)
-            if num_codes == 0:
-                self.dtc_display.insert("1.0", "✓ INGA FELKODER\n\nStatus: OK\nSystemet fungerar normalt.")
-            else:
-                available_codes = list(DTC_DESCRIPTIONS.keys())
-                codes = random.sample(available_codes, num_codes)
-                self.dtc_display.insert("1.0", f"⚠ HITTADE {len(codes)} FELKOD(ER):\n\n")
-                
-                for code in codes:
-                    desc = DTC_DESCRIPTIONS[code]
-                    self.dtc_display.insert("end", f"{code}: {desc}\n")
-                
-                self.dtc_display.insert("end", "\nKonsultera manual för detaljer.")
+                    self.after(0, lambda: self.dtc_display.insert("end", "\nKonsultera manual för detaljer."))
+            
+            # Lås textbox igen
+            self.after(0, lambda: self.dtc_display.configure(state="disabled"))
         
-        # Lås textbox igen
-        self.dtc_display.configure(state="disabled")
+        # Kör i bakgrundstråd
+        threading.Thread(target=read_with_delay, daemon=True).start()
     
     def _clear_dtc(self):
         """Rensa felkoder - ingen popup."""
-        if not self.use_sim:
-            try:
-                read_obd_data(self.commands.get('clear_dtc'))
+        # Visa laddningsmeddelande
+        self.dtc_display.configure(state="normal")
+        self.dtc_display.delete("1.0", "end")
+        self.dtc_display.insert("1.0", "🗑️ RENSAR FELKODER...\n\nVänligen vänta...")
+        self.dtc_display.configure(state="disabled")
+        
+        # Delay och rensa i bakgrunden
+        def clear_with_delay():
+            time.sleep(1.5)  # 1.5 sekunders delay
+            
+            self.after(0, lambda: self.dtc_display.configure(state="normal"))
+            self.after(0, lambda: self.dtc_display.delete("1.0", "end"))
+            
+            if not self.use_sim:
+                try:
+                    read_obd_data(self.commands.get('clear_dtc'))
+                    self.dist_dtc = 0
+                    self.time_dtc = 0
+                    
+                    # Uppdatera display
+                    self.after(0, lambda: self.dtc_display.insert("1.0", "✓ FELKODER RENSADE\n\nAlla felkoder har tagits bort.\nAvstånd och tid har återställts."))
+                    
+                except Exception as e:
+                    # Visa fel i displayen istället för popup
+                    self.after(0, lambda: self.dtc_display.insert("1.0", f"✗ FEL VID RENSNING\n\n{str(e)}\n\nKontrollera OBD-anslutning."))
+            else:
                 self.dist_dtc = 0
                 self.time_dtc = 0
                 
                 # Uppdatera display
-                self.dtc_display.configure(state="normal")
-                self.dtc_display.delete("1.0", "end")
-                self.dtc_display.insert("1.0", "✓ FELKODER RENSADE\n\nAlla felkoder har tagits bort.\nAvstånd och tid har återställts.")
-                self.dtc_display.configure(state="disabled")
-                
-            except Exception as e:
-                # Visa fel i displayen istället för popup
-                self.dtc_display.configure(state="normal")
-                self.dtc_display.delete("1.0", "end")
-                self.dtc_display.insert("1.0", f"✗ FEL VID RENSNING\n\n{str(e)}\n\nKontrollera OBD-anslutning.")
-                self.dtc_display.configure(state="disabled")
-        else:
-            self.dist_dtc = 0
-            self.time_dtc = 0
+                self.after(0, lambda: self.dtc_display.insert("1.0", "✓ FELKODER RENSADE\n\nAlla felkoder har tagits bort.\nAvstånd och tid har återställts."))
             
-            # Uppdatera display
-            self.dtc_display.configure(state="normal")
-            self.dtc_display.delete("1.0", "end")
-            self.dtc_display.insert("1.0", "✓ FELKODER RENSADE\n\nAlla felkoder har tagits bort.\nAvstånd och tid har återställts.")
-            self.dtc_display.configure(state="disabled")
+            # Lås textbox igen
+            self.after(0, lambda: self.dtc_display.configure(state="disabled"))
+        
+        # Kör i bakgrundstråd
+        threading.Thread(target=clear_with_delay, daemon=True).start()
     
     def _read(self, cmd, default=0):
         """Läs OBD-värde."""
