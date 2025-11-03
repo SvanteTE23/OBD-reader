@@ -454,27 +454,49 @@ class OBDDashboard(ctk.CTk):
         
         try:
             # GPIO-pinnnummer (BCM-numrering)
-            gpio_next = 17   # GPIO 17 (Pin 11) - Byt sida
-            gpio_read = 27   # GPIO 27 (Pin 13) - Läs felkoder
-            gpio_clear = 22  # GPIO 22 (Pin 15) - Rensa felkoder
+            gpio_button = 17  # GPIO 17 (Pin 11) - Huvudknapp
+            gpio_toggle_read = 27  # GPIO 27 (Pin 13) - Toggle position LÄS
+            gpio_toggle_clear = 22  # GPIO 22 (Pin 15) - Toggle position RENSA
             
-            # Skapa knappar med gpiozero (automatiskt pull-up och debounce)
-            self.gpio_button_next = Button(gpio_next, pull_up=True, bounce_time=0.2)
-            self.gpio_button_read = Button(gpio_read, pull_up=True, bounce_time=0.2)
-            self.gpio_button_clear = Button(gpio_clear, pull_up=True, bounce_time=0.2)
+            # Skapa tryckknapp och läs båda toggle-positionerna
+            self.gpio_button = Button(gpio_button, pull_up=True, bounce_time=0.2)
+            self.gpio_toggle_read = Button(gpio_toggle_read, pull_up=True)  # Ingen debounce för toggle
+            self.gpio_toggle_clear = Button(gpio_toggle_clear, pull_up=True)  # Ingen debounce för toggle
             
-            # Koppla knapp-händelser
-            self.gpio_button_next.when_pressed = self._gpio_next_page
-            self.gpio_button_read.when_pressed = lambda: self.after(0, self._get_dtc)
-            self.gpio_button_clear.when_pressed = lambda: self.after(0, self._clear_dtc)
+            # Koppla händelse
+            self.gpio_button.when_pressed = self._gpio_button_action
             
-            print("✓ GPIO-knappar konfigurerade:")
-            print(f"  GPIO {gpio_next} (Pin 11): Byt sida")
-            print(f"  GPIO {gpio_read} (Pin 13): Läs felkoder")
-            print(f"  GPIO {gpio_clear} (Pin 15): Rensa felkoder")
+            print("✓ GPIO konfigurerat:")
+            print(f"  GPIO {gpio_button} (Pin 11): Tryckknapp")
+            print(f"  GPIO {gpio_toggle_read} (Pin 13): Toggle-switch LÄS")
+            print(f"  GPIO {gpio_toggle_clear} (Pin 15): Toggle-switch RENSA")
+            print("\n  Byt sida: Tryck på knappen")
+            print("  På Diagnostiksida:")
+            print("    - Toggle i LÄS-läge = LÄS felkoder")
+            print("    - Toggle i RENSA-läge = RENSA felkoder")
             
         except Exception as e:
             print(f"✗ GPIO-konfiguration misslyckades: {e}")
+    
+    def _gpio_button_action(self):
+        """Hantera tryckknapp - olika action beroende på sida och toggle."""
+        # Om vi är på diagnostiksidan (sida 3)
+        if self.current_page == 3:
+            # Läs toggle-läge (med pull_up=True är is_pressed=False när pin är LOW/jordad)
+            read_mode_active = not self.gpio_toggle_read.is_pressed  # Pin 27 jordad = READ mode
+            clear_mode_active = not self.gpio_toggle_clear.is_pressed  # Pin 22 jordad = CLEAR mode
+            
+            if read_mode_active:  # Toggle i LÄS-läge (pin 27 jordad)
+                print("🔍 Läser felkoder...")
+                self.after(0, self._get_dtc)
+            elif clear_mode_active:  # Toggle i RENSA-läge (pin 22 jordad)
+                print("🗑️ Rensar felkoder...")
+                self.after(0, self._clear_dtc)
+            else:
+                print("⚠️ Toggle-switch i okänt läge")
+        else:
+            # På andra sidor: byt sida
+            self._gpio_next_page()
     
     def _gpio_next_page(self):
         """Byt till nästa sida via GPIO-knapp (loopar runt)."""
@@ -654,12 +676,12 @@ class OBDDashboard(ctk.CTk):
         # Städa GPIO
         if GPIO_AVAILABLE:
             try:
-                if hasattr(self, 'gpio_button_next'):
-                    self.gpio_button_next.close()
-                if hasattr(self, 'gpio_button_read'):
-                    self.gpio_button_read.close()
-                if hasattr(self, 'gpio_button_clear'):
-                    self.gpio_button_clear.close()
+                if hasattr(self, 'gpio_button'):
+                    self.gpio_button.close()
+                if hasattr(self, 'gpio_toggle_read'):
+                    self.gpio_toggle_read.close()
+                if hasattr(self, 'gpio_toggle_clear'):
+                    self.gpio_toggle_clear.close()
                 print("✓ GPIO städat")
             except:
                 pass
