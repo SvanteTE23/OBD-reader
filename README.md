@@ -52,14 +52,6 @@ python dashboard.py --real
 - Rensa felkoder
 - Visa tid/avstånd sedan felkoder rensades
 
-### GPIO-knappar (Raspberry Pi):
-För detaljer om hur du kopplar fysisk knapp, se [GPIO_SETUP.md](GPIO_SETUP.md)
-
-**Standard GPIO-pin:**
-- GPIO 17 - Byt till nästa sida (loopar: Sida 1 → 2 → 3 → 4 → 1 → ...)
-
-**Koppling:** GPIO 17 ----[Knapp]---- GND
-
 ## 🎨 Design
 
 - Mörkt tema optimerat för instrumentpanel
