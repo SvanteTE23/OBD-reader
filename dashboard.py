@@ -1,9 +1,3 @@
-"""
-OBD Dashboard - Modernt GUI för fordonsdiagnostik
-Stöd för både simulerad och riktig OBD-II data
-Stöd för fysiska knappar på Raspberry Pi via GPIO
-"""
-
 import sys
 import random
 import math
@@ -39,7 +33,7 @@ DTC_DESCRIPTIONS = {
 
 
 def initialize_obd_connection():
-    """Initialisera OBD-anslutning."""
+    #initialisera OBD-anslutning
     global obd_connection, read_json
     
     try:
@@ -61,7 +55,7 @@ def initialize_obd_connection():
 
 
 def read_obd_data(command):
-    """Läs data från OBD."""
+    #Läs data från OBD
     if not obd_connection:
         return None
     
