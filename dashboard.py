@@ -73,7 +73,7 @@ def read_obd_data(command):
 
 
 class GaugeWidget(ctk.CTkCanvas):
-    """Mätare med båge och visare."""
+    #Mätare med visare
     
     def __init__(self, master, title="", min_val=0, max_val=100, unit="", size=180, **kwargs):
         super().__init__(master, width=size, height=size, bg="#1a1a1e", highlightthickness=0, **kwargs)
@@ -92,7 +92,8 @@ class GaugeWidget(ctk.CTkCanvas):
         self.draw()
         
     def set_value(self, val):
-        """Uppdatera värde."""
+        #Uppdatera mätarens v'ärde
+        
         new_val = max(self.min_val, min(self.max_val, val))
         if self._last_drawn_value is None or abs(new_val - self._last_drawn_value) > 0.5:
             self.value = new_val
@@ -100,7 +101,7 @@ class GaugeWidget(ctk.CTkCanvas):
             self.draw()
     
     def draw(self):
-        """Rita mätaren."""
+        #Rita mätaren
         self.delete("all")
         
         margin = int(self.size * 0.05)
@@ -144,7 +145,7 @@ class GaugeWidget(ctk.CTkCanvas):
                         fill="#dcdcdc", font=("Arial", font_title, "bold"))
     
     def _draw_marks(self):
-        """Rita skalstreck."""
+        #Rita skala streck
         mark_outer = int(self.size * 0.32)
         mark_inner = int(self.size * 0.27)
         text_radius = int(self.size * 0.23)
@@ -166,7 +167,7 @@ class GaugeWidget(ctk.CTkCanvas):
                            fill="#8a8a8e", font=("Arial", font_size))
     
     def _draw_needle(self, ratio):
-        """Rita visare."""
+        #Rita visare
         needle_len = int(self.size * 0.30)
         # Visare går från 225° (vänster botten) till -45° (höger botten) medurs
         angle = math.radians(225 - (270 * ratio))
@@ -177,7 +178,7 @@ class GaugeWidget(ctk.CTkCanvas):
 
 
 class OBDDashboard(ctk.CTk):
-    """Huvuddashboard med 4 sidor."""
+    #Huvuddashboard med 4 sidor
     
     def __init__(self, use_sim=True):
         super().__init__()
@@ -206,7 +207,7 @@ class OBDDashboard(ctk.CTk):
         self._start_updates()
         
     def _setup_ui(self):
-        """Skapa gränssnitt."""
+        #Skapa gränssnitt
         mode = "Simulering" if self.use_sim else "Live OBD"
         self.title(f"OBD Dashboard - {mode}")
         self.geometry("1024x600")
@@ -248,7 +249,7 @@ class OBDDashboard(ctk.CTk):
         self._switch(0)
         
     def _page_main(self):
-        """Huvudsida."""
+        #Huvudsida
         page = ctk.CTkFrame(self.pages_frame, fg_color="#1a1a1e")
         
         gauges = ctk.CTkFrame(page, fg_color="transparent")
@@ -301,7 +302,7 @@ class OBDDashboard(ctk.CTk):
         self.pages.append(page)
     
     def _page_temp(self):
-        """Temperatursida."""
+        #Temperatursida
         page = ctk.CTkFrame(self.pages_frame, fg_color="#1a1a1e")
         
         ctk.CTkLabel(page, text="Temperaturövervakning",
@@ -322,7 +323,7 @@ class OBDDashboard(ctk.CTk):
         self.pages.append(page)
     
     def _page_fuel(self):
-        """Bränsle & luftsida."""
+        #Bränsle & luftsida
         page = ctk.CTkFrame(self.pages_frame, fg_color="#1a1a1e")
         
         ctk.CTkLabel(page, text="Bränsle & Luft",
@@ -360,7 +361,7 @@ class OBDDashboard(ctk.CTk):
         self.pages.append(page)
     
     def _page_diag(self):
-        """Diagnostiksida."""
+        #Diagnostiksida
         page = ctk.CTkFrame(self.pages_frame, fg_color="#1a1a1e")
         
         ctk.CTkLabel(page, text="Diagnostik & Felkoder",
@@ -443,13 +444,13 @@ class OBDDashboard(ctk.CTk):
         self.pages.append(page)
     
     def _make_switch_command(self, page_idx):
-        """Skapa kommando för att byta sida."""
+        #Skapa kommando för att byta sida
         def switch_cmd():
             self._switch(page_idx)
         return switch_cmd
     
     def _switch(self, idx):
-        """Byt sida."""
+        #Byt sida
         if idx == self.current_page:
             return
         
@@ -468,7 +469,7 @@ class OBDDashboard(ctk.CTk):
                 btn.configure(fg_color="#3B8ED0", hover_color="#1F6AA5", text_color="white")
     
     def _setup_gpio(self):
-        """Konfigurera GPIO-knappar för Raspberry Pi."""
+        #Konfigurera GPIO-knappar för Raspberry Pi
         if not GPIO_AVAILABLE:
             return
         
@@ -502,11 +503,11 @@ class OBDDashboard(ctk.CTk):
             print(f"✗ GPIO-konfiguration misslyckades: {e}")
     
     def _gpio_button_pressed(self):
-        """Registrera när knappen trycks ned."""
+        #Registrera när knappen trycks ned
         self.button_press_time = time.time()
     
     def _gpio_button_released(self):
-        """Hantera tryckknapp när den släpps - olika action beroende på tid och sida."""
+        #Hantera tryckknapp när den släpps - olika action beroende på tid och sida
         if self.button_press_time is None:
             return
         
@@ -538,12 +539,12 @@ class OBDDashboard(ctk.CTk):
             self._gpio_next_page()
     
     def _gpio_next_page(self):
-        """Byt till nästa sida via GPIO-knapp (loopar runt)."""
+        #Byt till nästa sida via GPIO-knapp (loopar runt)
         next_page = (self.current_page + 1) % len(self.pages)
         self.after(0, lambda: self._switch(next_page))
     
     def _get_dtc(self):
-        """Läs felkoder och visa i textbox."""
+        #Läs felkoder och visa i textbox
         # Visa laddningsmeddelande
         self.dtc_display.configure(state="normal")
         self.dtc_display.delete("1.0", "end")
@@ -597,7 +598,7 @@ class OBDDashboard(ctk.CTk):
         threading.Thread(target=read_with_delay, daemon=True).start()
     
     def _clear_dtc(self):
-        """Rensa felkoder - ingen popup."""
+        #Rensa felkoder och återställ avstånd/tid
         # Visa laddningsmeddelande
         self.dtc_display.configure(state="normal")
         self.dtc_display.delete("1.0", "end")
@@ -637,7 +638,7 @@ class OBDDashboard(ctk.CTk):
         threading.Thread(target=clear_with_delay, daemon=True).start()
     
     def _read(self, cmd, default=0):
-        """Läs OBD-värde."""
+        #Läs OBD
         if self.use_sim or cmd not in self.commands:
             return None
         
@@ -651,7 +652,7 @@ class OBDDashboard(ctk.CTk):
         return default
     
     def _start_updates(self):
-        """Starta uppdateringar."""
+        #Starta uppdateringar
         self._running = True
         
         def update():
@@ -665,7 +666,7 @@ class OBDDashboard(ctk.CTk):
         threading.Thread(target=update, daemon=True).start()
     
     def _update(self):
-        """Uppdatera data."""
+        #Uppdatera data
         if self.use_sim:
             spd, r, thr = random.randint(0, 180), random.randint(800, 7000), random.randint(0, 100)
             ld, tim = random.randint(10, 95), random.uniform(-10, 45)
@@ -744,7 +745,7 @@ class OBDDashboard(ctk.CTk):
         self.time_lbl.configure(text=f"{dh:02d}:{dm:02d}:{ds:02d}")
     
     def destroy(self):
-        """Cleanup när programmet stängs."""
+        #Cleanup när programmet stängs
         self._running = False
         
         # Städa GPIO
