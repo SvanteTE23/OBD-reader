@@ -1,5 +1,3 @@
-Självklart, här kommer samma formatering fast på engelska:
-
 ---
 
 # OBD Dashboard - Modern GUI for Vehicle Diagnostics
