@@ -27,8 +27,7 @@ Modular Raspberry Pi car display that uses ELM327 WiFi-based OBD adapters
 
 ## 🚀 Quick Start
 
-## ⚠️ IMPORTANT ⚠️##
-**Requires python 3.9 any other version wont work**
+## ⚠️ IMPORTANT ⚠️ Requires python 3.9 any other version wont work
 
 ### Create Python virtual environment
 
