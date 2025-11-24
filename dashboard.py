@@ -45,12 +45,12 @@ def initialize_obd_connection():
         obd_connection = obd.OBD("192.168.0.10", 35000)
         
         if obd_connection.is_connected():
-            print("✓ OBD-II adapter ansluten!")
+            print("OBD-II adapter ansluten!")
             return True
-        print("✗ Anslutning misslyckades")
+        print("Anslutning misslyckades")
         return False
     except Exception as e:
-        print(f"✗ Fel: {e}")
+        print(f"Fel: {e}")
         return False
 
 
