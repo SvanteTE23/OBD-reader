@@ -1,64 +1,89 @@
-# OBD Dashboard - Modernt GUI för Fordonsdiagnostik
+Självklart, här kommer samma formatering fast på engelska:
 
-Ett intuitivt dashboard för OBD-II diagnostik med stöd för både simulerad och riktig fordonsdata.
+---
 
-## ✨ Funktioner
+# OBD Dashboard - Modern GUI for Vehicle Diagnostics
 
-- **4 Dashboardsidor:**
-  - 🚗 Huvuddashboard (hastighet, varvtal, gas, motorbelastning)
-  - 🌡️ Temperatur (kylvätska, insug, olja)
-  - ⛽ Bränsle & Luft (tryck, flöde, MAF)
-  - 🔧 Diagnostik (felkoder, avstånd, tid)
+Modular Raspberry Pi car display that uses ELM327 WiFi-based OBD adapters
 
-- **Moderna mätare** med animerade bågar och visare
-- **Live-uppdatering** 10 gånger per sekund
-- **Simuleringsläge** för testning utan bil
-- **Svenskt gränssnitt**
-- **GPIO-stöd för Raspberry Pi** - Byt flikar med fysiska knappar!
+## ✨ Features
 
-## 🚀 Snabbstart
+* **4 Dashboard Pages:**
 
-### Installera beroenden:
+  * 🚗 Main Dashboard (speed, RPM, throttle, engine load)
+  * 🌡️ Temperature (coolant, intake, oil)
+  * ⛽ Fuel and Air (pressure, flow, MAF)
+  * 🔧 Diagnostics (fault codes)
+
+* **Modern gauges** with animated needles
+
+* **Live updating** 10 times per second
+
+* **Simulation mode** for testing without a car
+
+* **Swedish interface**
+
+* **GPIO support for Raspberry Pi** - switch tabs using physical buttons
+
+## 🚀 Quick Start
+
+### Create Python virtual environment
+
+```bash
+python -m venv venv
+```
+
+### Install dependencies:
+
 ```bash
 pip install -r requirements.txt
 ```
 
-### Kör i simuleringsläge:
+### Install OBD library:
+
+```bash
+pip install obd-lib/setup.py
+```
+
+### Run in simulation mode:
+
 ```bash
 python dashboard.py
 ```
 
-### Kör med riktig OBD-II data:
+### Run with real OBD-II data:
+
 ```bash
 python dashboard.py --real
 ```
 
-## 📋 Krav
+## 📋 Requirements
 
-- Python 3.9+
-- CustomTkinter ≥5.2.0
-- python-OBD ≥0.7.1
-- OBD-II WiFi-adapter (192.168.0.10:35000)
+* Python 3.9
+* CustomTkinter ≥5.2.0
+* python-OBD ≥0.7.1
+* OBD-II WiFi adapter
 
-## 🎛️ Användning
+## 🎛️ Usage
 
-1. **Anslut OBD-II adapter** till fordonets diagnosuttag
-2. **Starta programmet** i önskat läge
-3. **Navigera mellan sidor** med knapparna högst upp eller fysiska GPIO-knappar (Raspberry Pi)
-4. **Övervaka live-data** från din bil
+1. **Connect the OBD-II adapter** to the vehicle diagnostic port
+2. **Start the program** in the desired mode
+3. **Navigate between pages** using the buttons at the top or physical GPIO buttons (Raspberry Pi)
+4. **Monitor live data** from your car
 
-### Diagnostikfunktioner:
-- Läs felkoder (DTC)
-- Rensa felkoder
-- Visa tid/avstånd sedan felkoder rensades
+### Diagnostic functions:
+
+* Read fault codes (DTC)
+* Clear fault codes
+* Show time and distance since fault codes were cleared
 
 ## 🎨 Design
 
-- Mörkt tema optimerat för instrumentpanel
-- Högkontrast-mätare med grön accentfärg
-- Responsiv design för 1024x600 touchskärmar
-- Optimerad för Raspberry Pi 4
+* Dark theme optimized for dashboards
+* High-contrast gauges with green accent color
+* Responsive design for 1024x600 touchscreens
+* Optimized for Raspberry Pi 4
 
-## 📝 Licens
+## 📝 License
 
-Open source - fri att använda och modifiera.
+Open source - free to use and modify.
