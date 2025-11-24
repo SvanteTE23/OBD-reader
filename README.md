@@ -67,9 +67,10 @@ python dashboard.py --real
 ## 🎛️ Usage
 
 1. **Connect the OBD-II adapter** to the vehicle diagnostic port
-2. **Start the program** in the desired mode
-3. **Navigate between pages** using the buttons at the top or physical GPIO buttons (Raspberry Pi)
-4. **Monitor live data** from your car
+2. **Change the ip addres** to the adapters wifi ip addres
+3. **Start the program** in the desired mode
+4. **Navigate between pages** using the buttons at the top or physical GPIO buttons (Raspberry Pi)
+5. **Monitor live data** from your car
 
 ### Diagnostic functions:
 
